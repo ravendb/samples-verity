@@ -1,25 +1,14 @@
-# Yet Another Sample App (YASA)
+# Verity: The Fiscal Truth Engine
 
-![Build](https://github.com/ravendb/sample-blueprint/actions/workflows/build.yml/badge.svg)
+![Build](https://github.com/ravendb/samples-verity/actions/workflows/build.yml/badge.svg)
 
 ## Overview
 
-A sample application providing a simple online shop expierience. It leverages [RavenDB](https://ravendb.net) database as its core database.
+Preparing a Quarterly Financial Report or an Annual ESG Disclosure is a chaotic process involving dozens of versions, legal reviews, and strict regulatory compliance. **Verity** is the hub for these decisions to happen. It doesn't just store the PDF; it understands the narrative, tracks all the tables, and uses AI to ensure the CEO’s statement in Q2 matches the financial reality of Q1.
 
-<img width="950" height="590" alt="screenshot" src="https://github.com/user-attachments/assets/108cbb63-e937-4b40-9cb0-28123fc93125" />
+Financial reporting is no longer about just storing files; it's about defending the narrative. And with Verity, based on [RavenDB](https://ravendb.net), we make it real.
 
-
-## Live Demo
-
-A live hosted version of this application can be found here:
-
-**[https://yasa.samples.ravendb.net](https://yasa.samples.ravendb.net)**
-
-Please bear in mind, this application, for sake of simplicity of the deployment, is deployed in XYZ region. This can impact the latency you perceive. (remove if not applicable).
-
-We do clean the environment from time to time.
-
-## Features used
+## TBD - Features used
 
 The following RavenDB features are used to build the application:
 
@@ -27,7 +16,7 @@ The following RavenDB features are used to build the application:
 1. [Document Refresh](https://docs.ravendb.net/7.1/studio/database/settings/document-refresh) - a scheduled update of selected documents
 1. [Azure Storage Queues ETL](https://docs.ravendb.net/7.1/server/ongoing-tasks/etl/queue-etl/azure-queue) - Azure Storage Queues integration
 
-## Technologies
+## TBD - Technologies
 
 The following technogies were used to build this application:
 
@@ -37,7 +26,7 @@ The following technogies were used to build this application:
 1. ASP.NET Core 8
 1. Angular 14
 
-## Run locally
+## TBD - Run locally
 
 If you want to run the application locally, please follow the steps:
 
