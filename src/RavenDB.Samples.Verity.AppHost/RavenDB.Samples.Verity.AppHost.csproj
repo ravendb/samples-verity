@@ -1,0 +1,28 @@
+<Project Sdk="Aspire.AppHost.Sdk/13.2.0">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <UserSecretsId>8a63def4-dd24-4ac6-9074-5602c497b6cc</UserSecretsId>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Remove="RavenDB.Samples.Verity.Frontend\**" />
+    <EmbeddedResource Remove="RavenDB.Samples.Verity.Frontend\**" />
+    <None Remove="RavenDB.Samples.Verity.Frontend\**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Aspire.Hosting" Version="13.2.0" />
+    <PackageReference Include="Aspire.Hosting.Azure.Functions" Version="13.2.0" />
+    <PackageReference Include="Aspire.Hosting.NodeJs" Version="9.5.2" />
+    <PackageReference Include="CommunityToolkit.Aspire.Hosting.RavenDB" Version="13.1.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\RavenDB.Samples.Verity.App\RavenDB.Samples.Verity.App.csproj" />
+  </ItemGroup>
+
+</Project>

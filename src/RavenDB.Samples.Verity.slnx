@@ -1,0 +1,5 @@
+<Solution>
+  <Project Path="RavenDB.Samples.Verity.App/RavenDB.Samples.Verity.App.csproj" />
+  <Project Path="RavenDB.Samples.Verity.AppHost/RavenDB.Samples.Verity.AppHost.csproj" />
+  <Project Path="RavenDB.Samples.Verity.ServiceDefaults/RavenDB.Samples.Verity.ServiceDefaults.csproj" />
+</Solution>

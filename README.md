@@ -20,10 +20,10 @@ The following RavenDB features are used to build the application:
 
 The following technogies were used to build this application:
 
-1. RavenDB 7.1
-1. .NET 8
+1. RavenDB 7.2
+1. .NET 10
 1. Node.js 22
-1. ASP.NET Core 8
+1. Azure functions 4
 1. Angular 14
 
 ## TBD - Run locally
@@ -32,9 +32,10 @@ If you want to run the application locally, please follow the steps:
 
 1. Check out the GIT repository
 1. Install prerequisites:
-   1. [.NET 8.x](https://dotnet.microsoft.com/en-us/download/dotnet/8.0)
+   1. [.NET 10.x](https://dotnet.microsoft.com/en-us/download/dotnet/10.0)
    1. [Node.js 22.x](https://nodejs.org/en/download)
-1. Get the app running by ...
+1. Get yourself Raven Licensce and OpenAI API key
+1. Get the app running by opening command prompt in Folder src/RavenDB.Samples.Verity.AppHost and executing aspire run
 
 ## Community & Support
 
