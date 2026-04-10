@@ -10,28 +10,29 @@ using System.Text.Json;
 namespace RavenDB.Samples.Verity.App;
 
 /// <summary>
-/// Klient SEC EDGAR – pobiera raporty 10-Q w formacie HTM
-/// i zapisuje je jako dokumenty RavenDB (kolekcja "Reports")
-/// z załącznikiem "form10-q.htm".
+/// SEC EDGAR client – downloads 10-Q reports in HTM format
+/// and saves them as RavenDB documents (collection "Reports")
+/// with the attachment "form10-q.htm".
 /// </summary>
 public class SecEdgarApi(HttpClient http, IDocumentStore store, ILogger<SecEdgarApi> logger)
 {
     private const string EdgarBase = "https://www.sec.gov";
     private const string DataBase  = "https://data.sec.gov";
+    private string Cik = null!;
+    private string CompanyName = null!;
+    private DateTime FiscalYearStart = default;
 
-    // ── 1. CIK → lista zgłoszeń 10-Q ────────────────────────────────────────────
+    // ── 1. CIK → list of filings of a given type ─────────────────────────────────────
 
-    public async Task<List<EdgarFiling>> GetRecent10QFilingsAsync(
-        string paddedCik, int maxCount = 10, CancellationToken ct = default)
+    public async Task<List<EdgarFiling>> GetRecentFilingsAsync(List<string> formType, int maxCount, CancellationToken ct = default)
     {
-        var url = $"{DataBase}/submissions/CIK{paddedCik}.json";
+        var url = $"{DataBase}/submissions/CIK{Cik}.json";
         using var response = await http.GetAsync(url, ct);
         response.EnsureSuccessStatusCode();
 
         await using var stream = await response.Content.ReadAsStreamAsync(ct);
         using var doc = await JsonDocument.ParseAsync(stream, cancellationToken: ct);
 
-        var companyName = doc.RootElement.GetProperty("name").GetString() ?? "Unknown";
         var recent      = doc.RootElement.GetProperty("filings").GetProperty("recent");
         var forms       = recent.GetProperty("form");
         var accessions  = recent.GetProperty("accessionNumber");
@@ -43,10 +44,9 @@ public class SecEdgarApi(HttpClient http, IDocumentStore store, ILogger<SecEdgar
 
         for (int i = 0; i < forms.GetArrayLength() && results.Count < maxCount; i++)
         {
-            if (!string.Equals(forms[i].GetString(), "10-Q", StringComparison.OrdinalIgnoreCase))
+            if (!formType.Contains(forms[i].GetString()!))
                 continue;
 
-            // EDGAR zwraca daty w formacie yyyy-MM-dd
             var filingDate = DateTime.ParseExact(
                 dates[i].GetString()!,
                 "yyyy-MM-dd",
@@ -60,85 +60,113 @@ public class SecEdgarApi(HttpClient http, IDocumentStore store, ILogger<SecEdgar
                 DateTimeStyles.None);
 
             results.Add(new EdgarFiling(
-                Cik:             paddedCik,
-                CompanyName:     companyName,
                 AccessionNumber: accessions[i].GetString()!,
                 FilingDate:      filingDate,
                 ReportDate:      reportDate,
-                PrimaryDocument: primaryDocs[i].GetString()!
+                PrimaryDocument: primaryDocs[i].GetString()!,
+                FormType:        forms[i].GetString()!
             ));
         }
 
-        return results;
+        return results  ;
     }
 
-    // ── 2. Pobieranie HTM i zapis do RavenDB ─────────────────────────────────────
+    // ── 2. Downloading HTM and saving to RavenDB ─────────────────────────────────────
 
-    public async Task DownloadAndSave10QAsync(EdgarFiling filing, CancellationToken ct = default)
+    private static int GetFiscalQuarter(int fiscalYearStart, int month)
+    {
+        int monthsIntoFiscalYear = ((month - fiscalYearStart + 12) % 12) + 1;
+        return (monthsIntoFiscalYear - 1) / 3 + 1;
+    }
+
+    public async Task DownloadAndSaveFilingAsync(EdgarFiling filing, string formType, CancellationToken ct = default)
     {
         var accNoDashes = filing.AccessionNumber.Replace("-", "");
-        var cikNumeric  = long.Parse(filing.Cik).ToString();
-        var htmUrl      = $"{EdgarBase}/Archives/edgar/data/{cikNumeric}/{accNoDashes}/{filing.PrimaryDocument}";
+        var cikNumeric = long.Parse(Cik).ToString();
+        var htmUrl = $"{EdgarBase}/Archives/edgar/data/{cikNumeric}/{accNoDashes}/{filing.PrimaryDocument}";
+        var attachmentName = $"form{formType.ToLower()}.htm";
+        var quarter = GetFiscalQuarter(FiscalYearStart.Month, filing.ReportDate.Month);
 
-        logger.LogInformation("Pobieranie 10-Q: {Url}", htmUrl);
+        logger.LogInformation("Downloading {FormType}: {Url}", formType, htmUrl);
 
         using var response = await http.GetAsync(htmUrl, HttpCompletionOption.ResponseHeadersRead, ct);
         response.EnsureSuccessStatusCode();
 
-        var docId = $"Reports/{filing.Cik}-{filing.AccessionNumber}";
+        var docId = $"Reports/{CompanyName}/{filing.ReportDate.Year}/Q{quarter}";
 
         using var session = store.OpenAsyncSession();
 
         if (await session.Advanced.ExistsAsync(docId, ct))
         {
-            logger.LogInformation("Dokument {DocId} już istnieje – pomijanie.", docId);
+            logger.LogInformation("Document {DocId} already exists – skipping.", docId);
             return;
         }
 
         var report = new Report
         {
-            Id              = docId,
-            Company         = filing.CompanyName,
-            Cik             = filing.Cik,
+            Id = docId,
+            CompanyId = $"Companies/{CompanyName}",
             AccessionNumber = filing.AccessionNumber,
-            FilingDate      = filing.FilingDate.ToString("dd.MM.yyyy"),
-            ReportDate      = filing.ReportDate.ToString("dd.MM.yyyy"),
-            DaysBetween     = (filing.FilingDate - filing.ReportDate).Days,
-            FormType        = "10-Q",
-            SourceUrl       = htmUrl,
+            ReportDate = filing.ReportDate.ToString("yyyy-MM-dd"),
+            FilingDate = filing.FilingDate.ToString("yyyy-MM-dd"),
+            DaysBetween = (filing.FilingDate - filing.ReportDate).Days,
+            Quarter = quarter,
+            Year = filing.ReportDate.Year,
+            FormType = formType,
+            SourceUrl = htmUrl,
         };
 
         await session.StoreAsync(report, docId, ct);
 
-        await using var htmStream     = await response.Content.ReadAsStreamAsync(ct);
-        using var       cleanedStream = CleanHtml(htmStream);
-        session.Advanced.Attachments.Store(docId, "form10-q.htm", cleanedStream, "text/html");
-        session.Advanced.GetMetadataFor(report)["@archive-at"] = filing.ReportDate.AddYears(1);
+        await using var htmStream = await response.Content.ReadAsStreamAsync(ct);
+        using var cleanedStream = CleanHtml(htmStream);
+        session.Advanced.Attachments.Store(docId, attachmentName, cleanedStream, "text/html");
+        var yearsToSub = 0;
+        if (FiscalYearStart.Month != 1 && quarter > 1)
+        {
+            yearsToSub = 1;
+        }
+
+        session.Advanced.GetMetadataFor(report)["@archive-at"] = FiscalYearStart.AddYears(filing.ReportDate.Year - yearsToSub + 2 );
 
         await session.SaveChangesAsync(ct);
-        logger.LogInformation("Zapisano raport {DocId}", docId);
+        logger.LogInformation("Saved report {DocId}", docId);
     }
 
-    // ── 3. Główny punkt wejścia ──────────────────────────────────────────────────
+    // ── 3. Main entry point ─────────────────────────────────────────────────────
 
-    public async Task FetchAndSaveAll10QsAsync(
-        string cik, int maxFilings = 5, CancellationToken ct = default)
+    public async Task FetchAndSaveAllFilingsAsync(
+        Company company, int maxFilings = 5, CancellationToken ct = default)
     {
-        var paddedCik = cik.Trim().PadLeft(10, '0');
+        Cik             = company.Cik;
+        CompanyName     = company.Name;
+        FiscalYearStart = company.FiscalYearStart;
 
-        logger.LogInformation("CIK {Cik}", paddedCik);
+        logger.LogInformation("CIK {Cik} – {Name}", Cik, CompanyName);
 
-        var filings = await GetRecent10QFilingsAsync(paddedCik, maxFilings, ct);
-        logger.LogInformation("Znaleziono {Count} zgłoszeń 10-Q", filings.Count);
+        int maxK = maxFilings / 4;
+        int maxQ = maxFilings - maxK;
+
+        var max = new[] { maxQ, maxK };
+        var formTypes = new List<string>{ "10-Q", "10-K" };
+
+
+        var filings = await GetRecentFilingsAsync(formTypes, maxFilings, ct);
+        logger.LogInformation("Found {Count} filings", filings.Count);
 
         foreach (var filing in filings)
         {
-            await DownloadAndSave10QAsync(filing, ct);
+            await DownloadAndSaveFilingAsync(filing, filing.FormType, ct);
             await Task.Delay(120, ct);
         }
+
+
+        Cik             = null!;
+        CompanyName     = null!;
+        FiscalYearStart = default;
     }
 
-    // ── Czyszczenie HTML ─────────────────────────────────────────────────────────
+    // ── Cleaning HTML ─────────────────────────────────────────────────────────
 
     private static MemoryStream CleanHtml(Stream rawStream)
     {
@@ -179,15 +207,55 @@ public class SecEdgarApi(HttpClient http, IDocumentStore store, ILogger<SecEdgar
         }
     }
 
+    // ── 4. Fetching and saving company data ───────────────────────────────────
+
+    public async Task<Company> FetchAndSaveCompanyAsync(string cik, CancellationToken ct = default)
+    {
+        var paddedCik = cik.Trim().PadLeft(10, '0');
+        var url = $"{DataBase}/submissions/CIK{paddedCik}.json";
+
+        using var response = await http.GetAsync(url, ct);
+        response.EnsureSuccessStatusCode();
+
+        await using var stream = await response.Content.ReadAsStreamAsync(ct);
+        using var doc = await JsonDocument.ParseAsync(stream, cancellationToken: ct);
+        var root = doc.RootElement;
+
+        var companyName = root.GetProperty("name").GetString() ?? paddedCik;
+        var fiscalYearEnd = root.TryGetProperty("fiscalYearEnd", out var fye) ? fye.GetString() : null;
+        var fiscalYearStart = new DateTime(1, int.Parse(fiscalYearEnd!.Substring(0, 2)), 1, 0, 0, 0, DateTimeKind.Utc);
+        fiscalYearStart = fiscalYearStart.AddMonths(1);
+
+        if (fiscalYearStart.Year != 1)
+        {
+            fiscalYearStart = fiscalYearStart.AddYears(-1);
+        }
+
+        var company = new Company
+        {
+            Id = $"Companies/{companyName}",
+            Name = companyName,
+            Cik = paddedCik,
+            Sic = root.TryGetProperty("sic", out var sic) ? sic.GetString() : null,
+            SicDescription = root.TryGetProperty("sicDescription", out var sicDesc) ? sicDesc.GetString() : null,
+            FiscalYearStart = fiscalYearStart,
+        };
+
+        using var session = store.OpenAsyncSession();
+        await session.StoreAsync(company, company.Id, ct);
+        await session.SaveChangesAsync(ct);
+
+        logger.LogInformation("Saved company {Name} (CIK: {Cik})", company.Name, company.Cik);
+        return company;
+    }
 }
 
 // ── Modele ───────────────────────────────────────────────────────────────────────
 
 public record EdgarFiling(
-    string   Cik,
-    string   CompanyName,
     string   AccessionNumber,
     DateTime FilingDate,
     DateTime ReportDate,
-    string   PrimaryDocument
+    string   PrimaryDocument,
+    string   FormType
 );

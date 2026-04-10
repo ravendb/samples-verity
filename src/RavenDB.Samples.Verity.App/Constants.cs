@@ -12,6 +12,7 @@ namespace RavenDB.Samples.Verity.App
             public const string MaxSessionRequestsPer30Seconds = "SAMPLES_VERITY_MAX_SESSION_REQUESTS_PER_30_SECONDS";
             public const string OpenAiApiKey = "SAMPLES_VERITY_OPENAI_API_KEY";
             public const string SecEdgarUserAgent = "SAMPLES_VERITY_SEC_EDGAR_USER_AGENT";
+            public const string DumpFilePath = "SAMPLES_VERITY_DUMP_FILE_PATH";
         }
 
         public static class DocumentIds

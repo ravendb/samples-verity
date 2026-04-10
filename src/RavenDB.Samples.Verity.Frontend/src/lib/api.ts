@@ -2,6 +2,13 @@
  * Minimal API helper
  */
 
+export interface PagedResult<T> {
+	items:      T[];
+	page:       number;
+	pageSize:   number;
+	totalPages: number;
+}
+
 export const API_BASE_URL: string = _BASE_API_HTTP_ ?? '';
 
 export function apiUrl(path: string): string {

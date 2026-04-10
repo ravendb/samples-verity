@@ -11,8 +11,17 @@
 {@render children()}
 
 <style>
+	:global(*, *::before, *::after) {
+		box-sizing: border-box;
+	}
+
 	:global(body) {
 		margin: 0;
 		font-family: system-ui, -apple-system, sans-serif;
+		background: #0e1621;
+	}
+
+	:global(input, button, select, textarea) {
+		font: inherit;
 	}
 </style>

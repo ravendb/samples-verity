@@ -16,39 +16,61 @@ namespace RavenDB.Samples.Verity.App.Infrastructure.Tasks
             GenAiTransformation = new GenAiTransformation
             {
                 Script = @"
-const [day, month, year] = this.ReportDate.split(""."");
-const date = new Date(year, month - 1, day); // miesiące 0-based
-const dateNow = new Date();
-const monthsBetween = (dateNow.getMonth() - date.getMonth()) + ((dateNow.getFullYear() - date.getFullYear()) * 12);
-if (monthsBetween <= 12) {
-    const text = loadAttachment(`form10-q.htm`);
-    if (text !== null) {
-        ai.genContext({
-            Company: this.Company, Id: id(this)
-        })
-        .withText(loadAttachment(`form10-q.htm`));
+var metadata = this['@metadata'];
+if (metadata['@archive-at']) {
+    var archiveAt = new Date(metadata['@archive-at']);
+    var today = new Date();
+    today.setHours(0, 0, 0, 0);
+}
+if (today < archiveAt) {
+    if (this.FormType == ""10-Q""){
+        const text = loadAttachment(`form10-q.htm`);
+        if (text !== null) {
+            ai.genContext({CompanyId: this.CompanyId, Id: id(this)})
+            .withText(loadAttachment(`form10-q.htm`));
+        }
+    }
+    else if (this.FormType == ""10-K""){
+        const text = loadAttachment(`form10-k.htm`);
+        if (text !== null) {
+            ai.genContext({CompanyId: this.CompanyId, Id: id(this)})
+            .withText(loadAttachment(`form10-k.htm`));
+        }
     }
 }"
             };
 
-            Prompt = "Analyze the attached quaterly reports document and assess its financial outcome." +
-                    "Calculate the total revenue and total costs." +
-                    "Determine whether the transaction resulted in a net profit or a net loss." +
-                    "Return:" +
-                    "- ProfitLoss: the net amount (positive = profit, negative = loss) as a number" +
-                    "- Profitable: true if ProfitLoss > 0, otherwise false" +
-                    "- Summary: a one-sentence description of the financial quarter";
+            Prompt = 
+"Analyze the attached quarterly report document and assess its financial performance." +
+"Calculate the total revenue and total costs." +
+"Assess the asset value." +
+"If a value is in millions or other units, write this abbreviation (e.g., 123 mil save mil)." +
+"Return:" +
+"- Revenues: the total Revenues as a number" +
+"- Expenses: the total expenses as a number" +
+"- Assets Value: the total value of assets as a number" +
+"- Abbreviation: the unit abbreviation if applicable (e.g., mil for millions, k for thousands), or empty string if not applicable" +
+"- Summary: a detailed quarterly report (keep under 512 characters)";
 
             SampleObject = JsonConvert.SerializeObject(new{
-                    ProfitLoss = 0.0,
+                    Revenues = 0,
+                    Expenses = 0,
+                    AssetsVal = 0,
+                    Abbreviation = "",
                     Profitable = true,
-                    Summary = "Brief description of the financial outcome"
-                });
+                    Summary = "Detailed description of the quarter"
+            });
 
             UpdateScript = @"
-                this.ProfitLoss = $output.ProfitLoss;
-                this.Profitable = $output.Profitable;
-                this.ProfitabilitySummary = $output.Summary;
+                this.Revenues = $output.Revenues;
+                this.Expenses = $output.Expenses;
+                this.AssetsValue = $output.AssetsVal;
+                this.ProfitLoss = $output.Revenues - $output.Expenses;
+                this.Profitable = this.ProfitLoss > 0;
+                this.Summary = $output.Summary;
+                if ($output.Abbreviation) {
+                    this.Abbreviation = $output.Abbreviation;
+                }
                 ";
 
             MaxConcurrency = 4;

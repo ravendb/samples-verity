@@ -1,5 +1,7 @@
 using CommunityToolkit.Aspire.Hosting.RavenDB;
+using Microsoft.Extensions.Configuration;
 using Projects;
+using System.Text.Json;
 
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -9,13 +11,12 @@ var queues = storage.AddQueues("queues");
 
 // RavenDB
 // https://learn.microsoft.com/en-us/dotnet/aspire/community-toolkit/ravendb?tabs=dotnet-cli#hosting-integration
-var license = Environment.GetEnvironmentVariable("RAVEN_LICENSE");
-
+var license = JsonSerializer.Serialize(
+    builder.Configuration.GetSection("RavenDB:License").Get<RavenLicense>());
 
 var settings = RavenDBServerSettings.Unsecured();
-if (license != null)
+if (!string.IsNullOrEmpty(license))
 {
-    // Use the license from the hardcoded JSON string
     settings.WithLicense(license);
 }
 
@@ -46,8 +47,9 @@ var functions = builder.AddAzureFunctionsProject<RavenDB_Samples_Verity_App>("ap
     .WithReference(db)
     .WaitFor(db)
 
-    .WithEnvironment("SAMPLES_VERITY_OPENAI_API_KEY", builder.Configuration["OpenAI:ApiKey"])
-    .WithEnvironment("SAMPLES_VERITY_SEC_EDGAR_USER_AGENT", builder.Configuration["SecEdgar:UserAgent"]);
+    .WithEnvironment("SAMPLES_VERITY_SEC_EDGAR_USER_AGENT", builder.Configuration["SecEdgar:UserAgent"])
+    .WithEnvironment("SAMPLES_VERITY_DUMP_FILE_PATH", builder.Configuration["RavenDB:DumpFilePath"])
+    .WithEnvironment("SAMPLES_VERITY_OPENAI_API_KEY", builder.Configuration["OpenAI:ApiKey"]);
 
 // Frontend
 var frontend = builder.AddNpmApp("Frontend", "../RavenDB.Samples.Verity.Frontend", "dev")
@@ -60,3 +62,5 @@ var frontend = builder.AddNpmApp("Frontend", "../RavenDB.Samples.Verity.Frontend
     .WaitFor(functions);
 
 builder.Build().Run();
+
+record RavenLicense(string Id, string Name, string[] Keys);

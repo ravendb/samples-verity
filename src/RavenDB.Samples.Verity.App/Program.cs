@@ -41,7 +41,7 @@ builder.Services.AddHttpContextAccessor();
 builder.Services.AddHttpClient<SecEdgarApi>(client =>
 {
     var userAgent = Environment.GetEnvironmentVariable(Constants.EnvVars.SecEdgarUserAgent)
-                    ?? throw new InvalidOperationException($"Brak zmiennej środowiskowej '{Constants.EnvVars.SecEdgarUserAgent}'.");
+                    ?? throw new InvalidOperationException($"No environment variable '{Constants.EnvVars.SecEdgarUserAgent}' found.");
     client.DefaultRequestHeaders.TryAddWithoutValidation("User-Agent", userAgent);
 });
 

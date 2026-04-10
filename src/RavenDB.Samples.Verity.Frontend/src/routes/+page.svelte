@@ -1,207 +1,433 @@
 <script lang="ts">
-  import { fetch10Q } from '$lib/services/test';
+  import { onMount } from 'svelte';
+  import { getCompanies, saveCompany, type Company } from '$lib/services/companies';
 
-  let cik = $state('');
-  let max = $state(5);
-  let status = $state<'idle' | 'loading' | 'ok' | 'error'>('idle');
+  let companies   = $state<Company[]>([]);
+  let status      = $state<'loading' | 'ok' | 'empty' | 'error'>('loading');
+  let errorMsg    = $state('');
+  let currentPage = $state(1);
+  let totalPages  = $state(1);
+  const pageSize  = 20;
 
-  async function handleSubmit() {
-    if (!cik.trim()) return;
+  // Add company modal
+  let showModal   = $state(false);
+  let cikInput    = $state('');
+  let addStatus   = $state<'idle' | 'loading' | 'ok' | 'error'>('idle');
+  let addErrorMsg = $state('');
 
+  onMount(loadCompanies);
+
+  async function loadCompanies(page = currentPage) {
     status = 'loading';
     try {
-      await fetch10Q(cik.trim(), max);
-      status = 'ok';
-    } catch {
-      status = 'error';
+      const data  = await getCompanies(page, pageSize);
+      companies   = data.items;
+      currentPage = data.page;
+      totalPages  = data.totalPages;
+      status      = data.items.length > 0 ? 'ok' : 'empty';
+    } catch (e: unknown) {
+      errorMsg = e instanceof Error ? e.message : 'Unknown error';
+      status   = 'error';
     }
+  }
+
+  async function goToPage(page: number) {
+    if (page < 1 || page > totalPages) return;
+    await loadCompanies(page);
+  }
+
+  async function handleAddCompany() {
+    if (!cikInput.trim()) return;
+    addStatus = 'loading';
+    addErrorMsg = '';
+    try {
+      await saveCompany(cikInput.trim());
+      addStatus = 'ok';
+      cikInput  = '';
+      await loadCompanies();
+      setTimeout(() => { showModal = false; addStatus = 'idle'; }, 1200);
+    } catch (e: unknown) {
+      addErrorMsg = e instanceof Error ? e.message : 'Unknown error';
+      addStatus = 'error';
+    }
+  }
+
+  function openModal() {
+    cikInput  = '';
+    addStatus = 'idle';
+    addErrorMsg = '';
+    showModal = true;
   }
 </script>
 
 <main>
-  <div class="card">
-    <div class="card-header">
-      <h1>SEC EDGAR — 10-Q Reports</h1>
-      <p class="subtitle">Fetch quarterly reports for a company and save them to the database.</p>
+  <header>
+    <div class="header-left">
+      <h1>SEC EDGAR — Companies</h1>
+    </div>
+    <button class="add-btn" onclick={openModal}>+ Add Company</button>
+  </header>
+
+  {#if status === 'loading'}
+    <div class="state-msg">
+      <div class="spinner"></div>
+      <p>Loading companies…</p>
     </div>
 
-    <form onsubmit={(e) => { e.preventDefault(); handleSubmit(); }}>
-      <label for="cik">Company CIK</label>
-      <div class="input-row">
+  {:else if status === 'error'}
+    <div class="state-msg error">
+      <p>✗ Error: {errorMsg}</p>
+    </div>
+
+  {:else if status === 'empty'}
+    <div class="state-msg">
+      <p>No companies in the database. Add a company using the button above.</p>
+    </div>
+
+  {:else}
+    <div class="grid">
+      {#each companies as c}
+        <a href="/companies/{encodeURIComponent(c.cik)}" class="card">
+          <div class="card-name">{c.name}</div>
+          <div class="card-meta">
+            <span class="meta-item"><span class="meta-label">CIK</span>{c.cik}</span>
+            {#if c.sic}
+              <span class="meta-item"><span class="meta-label">SIC</span>{c.sic}</span>
+            {/if}
+          </div>
+          {#if c.sicDescription}
+            <div class="card-desc">{c.sicDescription}</div>
+          {/if}
+          {#if c.fiscalYearEnd}
+            <div class="card-fy">Fiscal year end: {c.fiscalYearEnd}</div>
+          {/if}
+          <div class="card-arrow">View reports →</div>
+        </a>
+      {/each}
+    </div>
+
+    {#if totalPages > 1}
+      <div class="pagination">
+        <button class="page-btn" disabled={currentPage <= 1} onclick={() => goToPage(currentPage - 1)}>← Prev</button>
+        <span class="page-info">Page {currentPage} of {totalPages}</span>
+        <button class="page-btn" disabled={currentPage >= totalPages} onclick={() => goToPage(currentPage + 1)}>Next →</button>
+      </div>
+    {/if}
+  {/if}
+</main>
+
+{#if showModal}
+  <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
+  <div class="overlay" onclick={() => { if (addStatus !== 'loading') showModal = false; }}>
+    <div class="modal" onclick={(e) => e.stopPropagation()}>
+      <h2>Add Company</h2>
+      <p class="modal-hint">Enter the SEC EDGAR CIK number to fetch and save company data.</p>
+
+      <form onsubmit={(e) => { e.preventDefault(); handleAddCompany(); }}>
+        <label for="cik-input">Company CIK</label>
         <input
-          id="cik"
-          bind:value={cik}
+          id="cik-input"
+          bind:value={cikInput}
           placeholder="e.g. 320193 (Apple)"
-          disabled={status === 'loading'}
+          disabled={addStatus === 'loading'}
           autocomplete="off"
           spellcheck="false"
         />
-        <input
-          id="max"
-          type="number"
-          bind:value={max}
-          min="1"
-          max="50"
-          disabled={status === 'loading'}
-          class="input-max"
-          title="Number of reports to fetch"
-        />
-        <button type="submit" disabled={!cik.trim() || status === 'loading'}>
-          {status === 'loading' ? 'Fetching…' : 'Fetch 10-Q'}
-        </button>
-      </div>
-      <p class="hint">Fetching <strong>{max}</strong> most recent report{max === 1 ? '' : 's'}.</p>
-    </form>
+        <div class="modal-actions">
+          <button type="button" class="btn-secondary"
+            onclick={() => showModal = false}
+            disabled={addStatus === 'loading'}>
+            Cancel
+          </button>
+          <button type="submit" class="btn-primary"
+            disabled={!cikInput.trim() || addStatus === 'loading'}>
+            {addStatus === 'loading' ? 'Fetching…' : 'Add Company'}
+          </button>
+        </div>
+      </form>
 
-    {#if status === 'ok'}
-      <p class="feedback ok">✓ 10-Q reports have been saved successfully.</p>
-    {:else if status === 'error'}
-      <p class="feedback error">✗ Fetch failed. Please check the CIK and try again.</p>
-    {/if}
-
-    <div class="divider"></div>
-
-    <a href="/reports" class="reports-btn">
-      <span class="icon">📊</span>
-      View Reports
-    </a>
+      {#if addStatus === 'ok'}
+        <p class="feedback ok">✓ Company saved successfully.</p>
+      {:else if addStatus === 'error'}
+        <p class="feedback error">✗ {addErrorMsg || 'Failed to add company.'}</p>
+      {/if}
+    </div>
   </div>
-</main>
+{/if}
 
 <style>
-  main {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    min-height: 100vh;
-    padding: 2rem;
-    background: linear-gradient(135deg, #0f2a5a 0%, #1a4a8a 50%, #1560bd 100%);
-  }
+	main {
+	min-height: 100vh;
+	background: #192d47;
+	color: #d8e4f0;
+	}
 
-  .card {
-    background: #fff;
-    border-radius: 14px;
-    box-shadow: 0 8px 40px rgba(0,0,0,.25);
-    padding: 2.5rem;
-    width: 100%;
-    max-width: 460px;
-    display: flex;
-    flex-direction: column;
-    gap: 1.5rem;
-  }
+	/* Header */
+	header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	background: #0b2e5c;
+	color: #fff;
+	padding: 1rem 2rem;
+	box-shadow: 0 2px 8px rgba(0,0,0,.5);
+	}
 
-  .card-header {
-    display: flex;
-    flex-direction: column;
-    gap: 0.4rem;
-  }
+	.header-left {
+	display: flex;
+	align-items: center;
+	gap: 0.75rem;
+	}
 
-  h1 {
-    margin: 0;
-    font-size: 1.35rem;
-    font-weight: 700;
-    color: #1a2a3a;
-  }
+	h1 {
+	margin: 0;
+	font-size: 1.3rem;
+	font-weight: 600;
+	}
 
-  .subtitle {
-    margin: 0;
-    font-size: 0.875rem;
-    color: #667;
-    line-height: 1.5;
-  }
+	.badge {
+	font-size: 0.8rem;
+	background: rgba(255,255,255,.12);
+	padding: 0.2rem 0.6rem;
+	border-radius: 999px;
+	}
 
-  form {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-  }
+	.add-btn {
+	padding: 0.5rem 1.1rem;
+	background: #121d30;
+	color: #5b9bd5;
+	border: none;
+	border-radius: 7px;
+	font-size: 0.9rem;
+	font-weight: 700;
+	cursor: pointer;
+	transition: background 0.15s, color 0.15s;
+	}
+	.add-btn:hover { background: #e0eaf8; }
 
-  label {
-    font-size: 0.82rem;
-    font-weight: 600;
-    color: #445;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-  }
+	/* States */
+	.state-msg {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	gap: 1rem;
+	padding: 5rem 2rem;
+	color: #8aa4be;
+	}
+	.state-msg.error { color: #b00; }
 
-  .input-row {
-    display: flex;
-    gap: 0.5rem;
-  }
+	.spinner {
+	width: 36px; height: 36px;
+	border: 3px solid #243550;
+	border-top-color: #5b9bd5;
+	border-radius: 50%;
+	animation: spin 0.8s linear infinite;
+	}
+	@keyframes spin { to { transform: rotate(360deg); } }
 
-  input {
-    flex: 1;
-    padding: 0.6rem 0.85rem;
-    font-size: 1rem;
-    border: 1.5px solid #ccd;
-    border-radius: 7px;
-    outline: none;
-    color: #1a2a3a;
-    transition: border-color 0.15s;
-  }
-  input:focus { border-color: #1a4a8a; }
-  input:disabled { opacity: 0.5; background: #f5f7fa; }
+	/* Grid */
+	.grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+	gap: 1.25rem;
+	padding: 2rem;
+	}
 
-  .input-max {
-    flex: 0 0 72px;
-    text-align: center;
-  }
+	.card {
+	background: #121d30;
+	border-radius: 12px;
+	box-shadow: 0 2px 10px rgba(0,0,0,.5);
+	padding: 1.25rem 1.5rem;
+	text-decoration: none;
+	color: inherit;
+	display: flex;
+	flex-direction: column;
+	gap: 0.5rem;
+	transition: box-shadow 0.15s, transform 0.12s;
+	border: 2px solid transparent;
+	}
+	.card:hover {
+	box-shadow: 0 6px 20px rgba(26,74,138,.15);
+	border-color: #5b9bd5;
+	transform: translateY(-2px);
+	}
 
-  .hint {
-    margin: 0;
-    font-size: 0.8rem;
-    color: #889;
-  }
+	.card-name {
+	font-size: 1.05rem;
+	font-weight: 700;
+	color: #d8e4f0;
+	}
 
-  button {
-    padding: 0.6rem 1.25rem;
-    font-size: 0.95rem;
-    font-weight: 600;
-    background: #1a4a8a;
-    color: #fff;
-    border: none;
-    border-radius: 7px;
-    cursor: pointer;
-    white-space: nowrap;
-    transition: background 0.15s;
-  }
-  button:hover:not(:disabled) { background: #153c70; }
-  button:disabled { opacity: 0.4; cursor: default; }
+	.card-meta {
+	display: flex;
+	gap: 1rem;
+	flex-wrap: wrap;
+	}
 
-  .feedback {
-    margin: 0;
-    padding: 0.6rem 0.9rem;
-    border-radius: 7px;
-    font-size: 0.875rem;
-  }
-  .feedback.ok    { background: #e6f7eb; color: #1a6a30; }
-  .feedback.error { background: #fde8e8; color: #991111; }
+	.meta-item {
+	font-size: 0.8rem;
+	color: #7a96b2;
+	}
 
-  .divider {
-    border: none;
-    border-top: 1.5px solid #e8eef5;
-    margin: 0;
-  }
+	.meta-label {
+	font-weight: 600;
+	color: #5e7a96;
+	text-transform: uppercase;
+	font-size: 0.7rem;
+	margin-right: 0.3rem;
+	}
 
-  .reports-btn {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.6rem;
-    padding: 0.8rem 1.5rem;
-    background: #f0f5fb;
-    border: 2px solid #1a4a8a;
-    border-radius: 8px;
-    color: #1a4a8a;
-    font-size: 1rem;
-    font-weight: 700;
-    text-decoration: none;
-    transition: background 0.15s, color 0.15s;
-  }
-  .reports-btn:hover {
-    background: #1a4a8a;
-    color: #fff;
-  }
+	.card-desc {
+	font-size: 0.82rem;
+	color: #7a96b2;
+	}
 
-  .icon { font-size: 1.2rem; }
+	.card-fy {
+	font-size: 0.78rem;
+	color: #5e7a96;
+	}
+
+	.card-arrow {
+	margin-top: auto;
+	font-size: 0.82rem;
+	color: #5b9bd5;
+	font-weight: 600;
+	padding-top: 0.5rem;
+	}
+
+	/* Modal */
+	.overlay {
+	position: fixed;
+	inset: 0;
+	background: rgba(0,0,0,.45);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	z-index: 100;
+	padding: 1rem;
+	}
+
+	.modal {
+	background: #19253a;
+	border-radius: 14px;
+	box-shadow: 0 12px 48px rgba(0,0,0,.3);
+	padding: 2rem;
+	width: 100%;
+	max-width: 420px;
+	display: flex;
+	flex-direction: column;
+	gap: 1rem;
+	}
+
+	.modal h2 {
+	margin: 0;
+	font-size: 1.2rem;
+	font-weight: 700;
+	color: #d8e4f0;
+	}
+
+	.modal-hint {
+	margin: 0;
+	font-size: 0.85rem;
+	color: #7a96b2;
+	}
+
+	form {
+	display: flex;
+	flex-direction: column;
+	gap: 0.6rem;
+	}
+
+	label {
+	font-size: 0.8rem;
+	font-weight: 600;
+	color: #8aa4be;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+	}
+
+	input {
+	padding: 0.65rem 0.9rem;
+	font-size: 1rem;
+	border: 1.5px solid #243550;
+	border-radius: 7px;
+	outline: none;
+	color: #d8e4f0;
+	transition: border-color 0.15s;
+	}
+	input:focus { border-color: #5b9bd5; }
+	input:disabled { opacity: 0.5; background: #111e30; }
+
+	.modal-actions {
+	display: flex;
+	gap: 0.6rem;
+	justify-content: flex-end;
+	padding-top: 0.4rem;
+	}
+
+	.btn-primary {
+	padding: 0.55rem 1.2rem;
+	background: #1a4a8a;
+	color: #fff;
+	border: none;
+	border-radius: 7px;
+	font-size: 0.9rem;
+	font-weight: 600;
+	cursor: pointer;
+	transition: background 0.15s;
+	}
+	.btn-primary:hover:not(:disabled) { background: #153c70; }
+	.btn-primary:disabled { opacity: 0.4; cursor: default; }
+
+	.btn-secondary {
+	padding: 0.55rem 1.2rem;
+	background: #0e1621;
+	color: #8aa4be;
+	border: 1.5px solid #243550;
+	border-radius: 7px;
+	font-size: 0.9rem;
+	font-weight: 600;
+	cursor: pointer;
+	transition: background 0.15s;
+	}
+	.btn-secondary:hover:not(:disabled) { background: #e0eaf8; }
+	.btn-secondary:disabled { opacity: 0.4; cursor: default; }
+
+	.feedback {
+	margin: 0;
+	padding: 0.6rem 0.9rem;
+	border-radius: 7px;
+	font-size: 0.875rem;
+	}
+	.feedback.ok    { background: #0d2a1a; color: #27ae60; }
+	.feedback.error { background: #2a0d0d; color: #e74c3c; }
+
+	.pagination {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 1rem;
+	padding: 1.5rem 2rem 2rem;
+	}
+
+	.page-btn {
+	padding: 0.45rem 1rem;
+	background: #19253a;
+	border: 1.5px solid #2a3f58;
+	border-radius: 7px;
+	font-size: 0.875rem;
+	font-weight: 600;
+	color: #5b9bd5;
+	cursor: pointer;
+	transition: background 0.15s, border-color 0.15s;
+	}
+	.page-btn:hover:not(:disabled) { background: #e8f0fb; border-color: #5b9bd5; }
+	.page-btn:disabled { opacity: 0.4; cursor: default; }
+
+	.page-info {
+	font-size: 0.875rem;
+	font-weight: 600;
+	color: #8aa4be;
+	}
 </style>

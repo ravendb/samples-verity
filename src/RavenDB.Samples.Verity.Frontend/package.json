@@ -21,5 +21,9 @@
 		"svelte-check": "^4.4.2",
 		"typescript": "^5.9.3",
 		"vite": "^7.3.1"
+	},
+	"dependencies": {
+		"@types/diff": "^7.0.2",
+		"diff": "^8.0.4"
 	}
 }
