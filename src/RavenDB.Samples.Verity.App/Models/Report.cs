@@ -1,9 +1,5 @@
 namespace RavenDB.Samples.Verity.App.Models;
 
-/// <summary>
-/// Dokument RavenDB przechowywany w kolekcji "Reports".
-/// Zawiera załącznik "form10-q.htm" lub "form10-k.htm" przetwarzany przez ProfitabilityTask.
-/// </summary>
 public class Report
 {
     public string  Id              { get; set; } = null!;
@@ -17,12 +13,17 @@ public class Report
     public string  FormType        { get; set; } = null!;
     public string  SourceUrl       { get; set; } = null!;
 
-    // Wypełniane przez ProfitabilityTask (AI)
-    public string? Abbreviation { get; set; }
+    public int ChunkCount { get; set; }
+
+    public List<string>? ChunkAnalyses { get; set; }
+
+    // ── AI-synthesised fields (written by ProfitabilityTask) ─────────────────
+
     public int?    Revenues     { get; set; }
     public int?    Expenses     { get; set; }
-    public int?    AssetsValue  { get; set; }
+    public int?    AssetsVal    { get; set; }
     public int?    ProfitLoss   { get; set; }
-    public bool?   Profitable   { get; set; }
+    public string? Abbreviation { get; set; }
     public string? Summary      { get; set; }
+    public bool?   Profitable   { get; set; }
 }

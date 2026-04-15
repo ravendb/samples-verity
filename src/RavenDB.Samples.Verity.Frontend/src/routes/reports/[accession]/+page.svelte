@@ -380,7 +380,7 @@
 
 <style>
 	main {
-	min-height: 100vh;
+	width: 100%;
 	background: #192d47;
 	color: #d8e4f0;
 	}
@@ -888,4 +888,3 @@
   }
   @keyframes spin { to { transform: rotate(360deg); } }
 </style>
-                                                         

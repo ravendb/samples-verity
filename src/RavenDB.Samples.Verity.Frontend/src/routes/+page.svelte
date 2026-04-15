@@ -1,3 +1,7 @@
+<svelte:head>
+  <title>Verity</title>
+</svelte:head>
+
 <script lang="ts">
   import { onMount } from 'svelte';
   import { getCompanies, saveCompany, type Company } from '$lib/services/companies';
@@ -63,7 +67,7 @@
 <main>
   <header>
     <div class="header-left">
-      <h1>SEC EDGAR — Companies</h1>
+      <h1>Verity: The Fiscal Truth Engine</h1>
     </div>
     <button class="add-btn" onclick={openModal}>+ Add Company</button>
   </header>
@@ -157,7 +161,7 @@
 
 <style>
 	main {
-	min-height: 100vh;
+	width: 100%;
 	background: #192d47;
 	color: #d8e4f0;
 	}

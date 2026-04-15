@@ -16,6 +16,17 @@ declare global {
 
 	// Vite define constants
 	const _BASE_API_HTTP_: string | undefined;
+
+	// Web Component: samples-ui-wrapper
+	namespace svelteHTML {
+		interface IntrinsicElements {
+			'samples-ui-wrapper': {
+				sourceLink: string;
+				theme?: 'light' | 'dark';
+				children?: import('svelte').Snippet;
+			};
+		}
+	}
 }
 
 export {};

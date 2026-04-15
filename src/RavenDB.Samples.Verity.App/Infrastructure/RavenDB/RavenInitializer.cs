@@ -8,6 +8,8 @@ using Raven.Client.Documents.Operations.Expiration;
 using Raven.Client.Documents.Operations.Revisions;
 using Raven.Client.Documents.Operations.TimeSeries;
 using Raven.Client.Documents.Smuggler;
+using Raven.Client.ServerWide.Operations;
+using Raven.Client.ServerWide.Operations.Configuration;
 using RavenDB.Samples.Verity.App.Infrastructure.Tasks;
 using System;
 using System.Collections.Generic;
@@ -18,6 +20,11 @@ namespace RavenDB.Samples.Verity.App.Infrastructure.RavenDB
 {
     public class RavenInitializer(IDocumentStore store) : IHostedService
     {
+        private readonly Dictionary<string, string> settings = new Dictionary<string, string>
+        {
+            ["Ai.GenAi.GenAiSendToModelTimeoutInSec"] = "180"
+        };
+
         private static readonly TimeSeriesConfiguration TimeSeriesConfig = new()
         {
             Collections =
@@ -42,10 +49,12 @@ namespace RavenDB.Samples.Verity.App.Infrastructure.RavenDB
                 ApiKey = Environment.GetEnvironmentVariable(Constants.EnvVars.OpenAiApiKey),
                 Model = "gpt-5-mini",
                 Endpoint = "https://api.openai.com/v1",
+
             }
         };
 
-        private static readonly GenAiConfiguration ProfitabilityTask = new ProfitabilityTask();
+        private static readonly GenAiConfiguration ChunkAnalysisTask  = new ChunkAnalysisTask();
+        private static readonly GenAiConfiguration ProfitabilityTask  = new ProfitabilityTask();
 
         private static readonly string? DumpFilePath =
             Environment.GetEnvironmentVariable(Constants.EnvVars.DumpFilePath);
@@ -73,6 +82,14 @@ namespace RavenDB.Samples.Verity.App.Infrastructure.RavenDB
 
         public async Task StartAsync(CancellationToken cancellationToken)
         {
+            await store.Maintenance.SendAsync(new PutDatabaseSettingsOperation(store.Database, settings), cancellationToken);
+
+            // Disable database
+            await store.Maintenance.Server.SendAsync(new ToggleDatabasesStateOperation(store.Database, true), cancellationToken);
+
+            // Enable database
+            await store.Maintenance.Server.SendAsync(new ToggleDatabasesStateOperation(store.Database, false), cancellationToken);
+
             // 1) IMPORT FROM DUMP
             if (!string.IsNullOrEmpty(DumpFilePath) && File.Exists(DumpFilePath))
             {
@@ -100,7 +117,10 @@ namespace RavenDB.Samples.Verity.App.Infrastructure.RavenDB
             await VerityAgentCreator.Create(store);
 
             // 6) GEN AI TASKS
-            //await store.Maintenance.SendAsync(new AddGenAiOperation(ProfitabilityTask), cancellationToken);
+            // Map: analyse each chunk individually
+            await store.Maintenance.SendAsync(new AddGenAiOperation(ChunkAnalysisTask),  cancellationToken);
+            // Reduce: synthesise all chunk analyses into the final Report fields
+            await store.Maintenance.SendAsync(new AddGenAiOperation(ProfitabilityTask),  cancellationToken);
 
             // 7) DATA ARCHIVAL
             await store.Maintenance.SendAsync(new ConfigureDataArchivalOperation(DataArchivalConfig), cancellationToken);

@@ -8,7 +8,9 @@
 	<link rel="icon" href={favicon} />
 </svelte:head>
 
-{@render children()}
+<samples-ui-wrapper sourceLink="https://github.com/ravendb/samples-verity" theme="dark">
+	{@render children()}
+</samples-ui-wrapper>
 
 <style>
 	:global(*, *::before, *::after) {
@@ -18,7 +20,7 @@
 	:global(body) {
 		margin: 0;
 		font-family: system-ui, -apple-system, sans-serif;
-		background: #0e1621;
+		background: #192d47;
 	}
 
 	:global(input, button, select, textarea) {

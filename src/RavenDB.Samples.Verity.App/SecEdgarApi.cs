@@ -1,19 +1,12 @@
-using HtmlAgilityPack;
 using Microsoft.Extensions.Logging;
 using Raven.Client.Documents;
 using RavenDB.Samples.Verity.App.Models;
 using System.Globalization;
-using System.Linq.Expressions;
 using System.Text;
 using System.Text.Json;
 
 namespace RavenDB.Samples.Verity.App;
 
-/// <summary>
-/// SEC EDGAR client – downloads 10-Q reports in HTM format
-/// and saves them as RavenDB documents (collection "Reports")
-/// with the attachment "form10-q.htm".
-/// </summary>
 public class SecEdgarApi(HttpClient http, IDocumentStore store, ILogger<SecEdgarApi> logger)
 {
     private const string EdgarBase = "https://www.sec.gov";
@@ -22,7 +15,7 @@ public class SecEdgarApi(HttpClient http, IDocumentStore store, ILogger<SecEdgar
     private string CompanyName = null!;
     private DateTime FiscalYearStart = default;
 
-    // ── 1. CIK → list of filings of a given type ─────────────────────────────────────
+    // ── 1. CIK → list of filings of a given type ─────────────────────────────
 
     public async Task<List<EdgarFiling>> GetRecentFilingsAsync(List<string> formType, int maxCount, CancellationToken ct = default)
     {
@@ -68,10 +61,10 @@ public class SecEdgarApi(HttpClient http, IDocumentStore store, ILogger<SecEdgar
             ));
         }
 
-        return results  ;
+        return results;
     }
 
-    // ── 2. Downloading HTM and saving to RavenDB ─────────────────────────────────────
+    // ── 2. Downloading HTM, cleaning, chunking and saving to RavenDB ─────────
 
     private static int GetFiscalQuarter(int fiscalYearStart, int month)
     {
@@ -82,10 +75,9 @@ public class SecEdgarApi(HttpClient http, IDocumentStore store, ILogger<SecEdgar
     public async Task DownloadAndSaveFilingAsync(EdgarFiling filing, string formType, CancellationToken ct = default)
     {
         var accNoDashes = filing.AccessionNumber.Replace("-", "");
-        var cikNumeric = long.Parse(Cik).ToString();
-        var htmUrl = $"{EdgarBase}/Archives/edgar/data/{cikNumeric}/{accNoDashes}/{filing.PrimaryDocument}";
-        var attachmentName = $"form{formType.ToLower()}.htm";
-        var quarter = GetFiscalQuarter(FiscalYearStart.Month, filing.ReportDate.Month);
+        var cikNumeric  = long.Parse(Cik).ToString();
+        var htmUrl      = $"{EdgarBase}/Archives/edgar/data/{cikNumeric}/{accNoDashes}/{filing.PrimaryDocument}";
+        var quarter     = GetFiscalQuarter(FiscalYearStart.Month, filing.ReportDate.Month);
 
         logger.LogInformation("Downloading {FormType}: {Url}", formType, htmUrl);
 
@@ -102,38 +94,75 @@ public class SecEdgarApi(HttpClient http, IDocumentStore store, ILogger<SecEdgar
             return;
         }
 
+        // ── Clean + split into Part documents ────────────────────────────────
+        await using var rawStream     = await response.Content.ReadAsStreamAsync(ct);
+        using  var      cleanedStream = HtmProcessor.CleanHtml(rawStream);
+
+        byte[] allBytes = cleanedStream.ToArray();
+
+        const int chunkBytes = 200 * 1024;                          // 200 KB
+        int total = Math.Max(1, (int)Math.Ceiling((double)allBytes.Length / chunkBytes));
+
+        // ── Build report document ────────────────────────────────────────────
         var report = new Report
         {
-            Id = docId,
-            CompanyId = $"Companies/{CompanyName}",
+            Id              = docId,
+            CompanyId       = $"Companies/{CompanyName}",
             AccessionNumber = filing.AccessionNumber,
-            ReportDate = filing.ReportDate.ToString("yyyy-MM-dd"),
-            FilingDate = filing.FilingDate.ToString("yyyy-MM-dd"),
-            DaysBetween = (filing.FilingDate - filing.ReportDate).Days,
-            Quarter = quarter,
-            Year = filing.ReportDate.Year,
-            FormType = formType,
-            SourceUrl = htmUrl,
+            ReportDate      = filing.ReportDate.ToString("yyyy-MM-dd"),
+            FilingDate      = filing.FilingDate.ToString("yyyy-MM-dd"),
+            DaysBetween     = (filing.FilingDate - filing.ReportDate).Days,
+            Quarter         = quarter,
+            Year            = filing.ReportDate.Year,
+            FormType        = formType,
+            SourceUrl       = htmUrl,
+            ChunkCount      = total,
         };
 
         await session.StoreAsync(report, docId, ct);
 
-        await using var htmStream = await response.Content.ReadAsStreamAsync(ct);
-        using var cleanedStream = CleanHtml(htmStream);
-        session.Advanced.Attachments.Store(docId, attachmentName, cleanedStream, "text/html");
-        var yearsToSub = 0;
-        if (FiscalYearStart.Month != 1 && quarter > 1)
-        {
-            yearsToSub = 1;
-        }
+        // ── Archive metadata ─────────────────────────────────────────────────
 
-        session.Advanced.GetMetadataFor(report)["@archive-at"] = FiscalYearStart.AddYears(filing.ReportDate.Year - yearsToSub + 2 );
+        int monthsBeforeSub = 12 - FiscalYearStart.Month;
+        int yearsToSub = 0;
+        if ((filing.ReportDate.Month - FiscalYearStart.Month + 12) % 12 > monthsBeforeSub)
+            yearsToSub = 1;
+
+        session.Advanced.GetMetadataFor(report)["@archive-at"] = FiscalYearStart.AddYears(filing.ReportDate.Year - yearsToSub + 2);
 
         await session.SaveChangesAsync(ct);
         logger.LogInformation("Saved report {DocId}", docId);
+
+        if (DateTime.UtcNow >= FiscalYearStart.AddYears(filing.ReportDate.Year - yearsToSub + 2))
+        {
+            logger.LogInformation("Report {DocId} is already archived based on fiscal year start – skipping parts.", docId);
+            return;
+        }
+
+        for (int i = 1; i <= total; i++)
+        {
+            int start  = (i - 1) * chunkBytes;
+            int length = Math.Min(chunkBytes, allBytes.Length - start);
+
+            var part = new ReportPart
+            {
+                Id              = $"Part/{i}/{filing.AccessionNumber}",
+                ReportId        = docId,
+                AccessionNumber = filing.AccessionNumber,
+                FormType        = formType,
+                Index           = i,
+                Total           = total,
+            };
+
+            await session.StoreAsync(part, part.Id, ct);
+
+            var textStream = new MemoryStream(allBytes, start, length, writable: false);
+            session.Advanced.Attachments.Store(part.Id, "text.htm", textStream, "text/html");
+        }
+        await session.SaveChangesAsync();
     }
 
-    // ── 3. Main entry point ─────────────────────────────────────────────────────
+    // ── 3. Main entry point ──────────────────────────────────────────────────
 
     public async Task FetchAndSaveAllFilingsAsync(
         Company company, int maxFilings = 5, CancellationToken ct = default)
@@ -144,14 +173,9 @@ public class SecEdgarApi(HttpClient http, IDocumentStore store, ILogger<SecEdgar
 
         logger.LogInformation("CIK {Cik} – {Name}", Cik, CompanyName);
 
-        int maxK = maxFilings / 4;
-        int maxQ = maxFilings - maxK;
+        var formTypes = new List<string> { "10-Q", "10-K" };
+        var filings   = await GetRecentFilingsAsync(formTypes, maxFilings, ct);
 
-        var max = new[] { maxQ, maxK };
-        var formTypes = new List<string>{ "10-Q", "10-K" };
-
-
-        var filings = await GetRecentFilingsAsync(formTypes, maxFilings, ct);
         logger.LogInformation("Found {Count} filings", filings.Count);
 
         foreach (var filing in filings)
@@ -160,84 +184,40 @@ public class SecEdgarApi(HttpClient http, IDocumentStore store, ILogger<SecEdgar
             await Task.Delay(120, ct);
         }
 
-
         Cik             = null!;
         CompanyName     = null!;
         FiscalYearStart = default;
     }
 
-    // ── Cleaning HTML ─────────────────────────────────────────────────────────
-
-    private static MemoryStream CleanHtml(Stream rawStream)
-    {
-        Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
-        var win1252   = Encoding.GetEncoding(1252);
-        var utf8NoBom = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false);
-
-        var htmlDoc = new HtmlDocument
-        {
-            OptionOutputAsXml     = false,
-            OptionWriteEmptyNodes = true
-        };
-        htmlDoc.Load(rawStream, win1252);
-
-        foreach (var xpath in new[] { "//script", "//style", "//link", "//noscript" })
-            RemoveNodes(htmlDoc, xpath);
-
-        RemoveNodes(htmlDoc, "//comment()");
-
-        var styledNodes = htmlDoc.DocumentNode.SelectNodes("//*[@style]");
-        if (styledNodes != null)
-            foreach (var node in styledNodes.ToList())
-                node.Attributes["style"]?.Remove();
-
-        RemoveNodes(htmlDoc, "//meta[@http-equiv]");
-
-        var ms = new MemoryStream();
-        htmlDoc.Save(ms, utf8NoBom);
-        ms.Position = 0;
-        return ms;
-
-        static void RemoveNodes(HtmlDocument doc, string xpath)
-        {
-            var nodes = doc.DocumentNode.SelectNodes(xpath);
-            if (nodes is null) return;
-            foreach (var node in nodes.ToList())
-                node.Remove();
-        }
-    }
-
-    // ── 4. Fetching and saving company data ───────────────────────────────────
+    // ── 4. Fetching and saving company data ──────────────────────────────────
 
     public async Task<Company> FetchAndSaveCompanyAsync(string cik, CancellationToken ct = default)
     {
         var paddedCik = cik.Trim().PadLeft(10, '0');
-        var url = $"{DataBase}/submissions/CIK{paddedCik}.json";
+        var url       = $"{DataBase}/submissions/CIK{paddedCik}.json";
 
         using var response = await http.GetAsync(url, ct);
         response.EnsureSuccessStatusCode();
 
         await using var stream = await response.Content.ReadAsStreamAsync(ct);
-        using var doc = await JsonDocument.ParseAsync(stream, cancellationToken: ct);
-        var root = doc.RootElement;
+        using var doc  = await JsonDocument.ParseAsync(stream, cancellationToken: ct);
+        var       root = doc.RootElement;
 
-        var companyName = root.GetProperty("name").GetString() ?? paddedCik;
-        var fiscalYearEnd = root.TryGetProperty("fiscalYearEnd", out var fye) ? fye.GetString() : null;
+        var companyName     = root.GetProperty("name").GetString() ?? paddedCik;
+        var fiscalYearEnd   = root.TryGetProperty("fiscalYearEnd", out var fye) ? fye.GetString() : null;
         var fiscalYearStart = new DateTime(1, int.Parse(fiscalYearEnd!.Substring(0, 2)), 1, 0, 0, 0, DateTimeKind.Utc);
-        fiscalYearStart = fiscalYearStart.AddMonths(1);
+        fiscalYearStart     = fiscalYearStart.AddMonths(1);
 
         if (fiscalYearStart.Year != 1)
-        {
             fiscalYearStart = fiscalYearStart.AddYears(-1);
-        }
 
         var company = new Company
         {
-            Id = $"Companies/{companyName}",
-            Name = companyName,
-            Cik = paddedCik,
-            Sic = root.TryGetProperty("sic", out var sic) ? sic.GetString() : null,
-            SicDescription = root.TryGetProperty("sicDescription", out var sicDesc) ? sicDesc.GetString() : null,
+            Id              = $"Companies/{companyName}",
+            Name            = companyName,
+            Cik             = paddedCik,
+            Sic             = root.TryGetProperty("sic",            out var sic)     ? sic.GetString()     : null,
+            SicDescription  = root.TryGetProperty("sicDescription", out var sicDesc) ? sicDesc.GetString() : null,
             FiscalYearStart = fiscalYearStart,
         };
 
@@ -250,7 +230,7 @@ public class SecEdgarApi(HttpClient http, IDocumentStore store, ILogger<SecEdgar
     }
 }
 
-// ── Modele ───────────────────────────────────────────────────────────────────────
+// ── Models ────────────────────────────────────────────────────────────────────
 
 public record EdgarFiling(
     string   AccessionNumber,

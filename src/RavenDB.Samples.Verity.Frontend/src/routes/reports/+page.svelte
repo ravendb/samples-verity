@@ -106,7 +106,7 @@
 
 <style>
   main {
-    min-height: 100vh;
+    width: 100%;
     padding: 0 0 3rem;
     background: #f0f4f9;
     color: #1a2a3a;

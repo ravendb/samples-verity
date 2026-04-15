@@ -1,0 +1,1 @@
+Komentarze po angielsku
