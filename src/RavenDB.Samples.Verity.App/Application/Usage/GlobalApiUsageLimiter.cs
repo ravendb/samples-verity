@@ -1,6 +1,7 @@
 using Raven.Client.Documents;
 using Raven.Client.Documents.Operations.TimeSeries;
 using RavenDB.Samples.Verity.App.Application.Exception;
+using RavenDB.Samples.Verity.App.Infrastructure;
 
 namespace RavenDB.Samples.Verity.App.Application.Usage;
 

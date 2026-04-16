@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Http;
 using Raven.Client.Documents;
 using Raven.Client.Documents.Operations.AI;
+using RavenDB.Samples.Verity.App.Infrastructure;
 
 namespace RavenDB.Samples.Verity.App.Application.Usage;
 

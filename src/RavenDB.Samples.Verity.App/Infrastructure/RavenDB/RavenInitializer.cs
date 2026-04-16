@@ -1,7 +1,9 @@
 using Microsoft.Extensions.Hosting;
 using Raven.Client.Documents;
+using Raven.Client.Documents.Attachments;
 using Raven.Client.Documents.Operations;
 using Raven.Client.Documents.Operations.AI;
+using Raven.Client.Documents.Operations.Attachments.Remote;
 using Raven.Client.Documents.Operations.ConnectionStrings;
 using Raven.Client.Documents.Operations.DataArchival;
 using Raven.Client.Documents.Operations.Expiration;
@@ -20,6 +22,30 @@ namespace RavenDB.Samples.Verity.App.Infrastructure.RavenDB
 {
     public class RavenInitializer(IDocumentStore store) : IHostedService
     {
+        private static readonly RemoteAttachmentsConfiguration remoteAttachmentsConfig = new RemoteAttachmentsConfiguration
+        {
+            Destinations = new Dictionary<string, RemoteAttachmentsDestinationConfiguration>
+            {
+                {
+                    "verity-azure-storage",
+                    new RemoteAttachmentsDestinationConfiguration
+                    {
+                        AzureSettings = new RemoteAttachmentsAzureSettings
+                        {
+                            StorageContainer = Environment.GetEnvironmentVariable(Constants.EnvVars.AzureStorageContainer),
+                            AccountName = Environment.GetEnvironmentVariable(Constants.EnvVars.AzureAccountName),
+                            AccountKey = Environment.GetEnvironmentVariable(Constants.EnvVars.AzureAccountKey),
+                            RemoteFolderName = Environment.GetEnvironmentVariable(Constants.EnvVars.AzureRemoteFolderName) // Optional
+                        },
+                        Disabled = false
+                    }
+                }
+            },
+            CheckFrequencyInSec = 6000,
+            MaxItemsToProcess = 25,
+            ConcurrentUploads = 5
+        };
+
         private readonly Dictionary<string, string> settings = new Dictionary<string, string>
         {
             ["Ai.GenAi.GenAiSendToModelTimeoutInSec"] = "180"
@@ -82,6 +108,9 @@ namespace RavenDB.Samples.Verity.App.Infrastructure.RavenDB
 
         public async Task StartAsync(CancellationToken cancellationToken)
         {
+            // 1) REMOTE ATTACHMENTS
+            await store.Maintenance.SendAsync(new ConfigureRemoteAttachmentsOperation(remoteAttachmentsConfig), cancellationToken);
+
             await store.Maintenance.SendAsync(new PutDatabaseSettingsOperation(store.Database, settings), cancellationToken);
 
             // Disable database

@@ -2,8 +2,8 @@ using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Builder;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using RavenDB.Samples.Verity.App;
 using RavenDB.Samples.Verity.App.Application.Usage;
+using RavenDB.Samples.Verity.App.Infrastructure;
 using RavenDB.Samples.Verity.App.Infrastructure.Middleware;
 using RavenDB.Samples.Verity.App.Infrastructure.RavenDB;
 

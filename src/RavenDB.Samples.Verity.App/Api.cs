@@ -11,6 +11,7 @@ using Raven.Client.Documents.Operations.AI.Agents;
 using Raven.Client.Documents.Operations.ConnectionStrings;
 using Raven.Client.Documents.Operations.Revisions;
 using Raven.Client.Documents.Session;
+using RavenDB.Samples.Verity.App.Infrastructure;
 using RavenDB.Samples.Verity.App.Models;
 using System.Globalization;
 using System.Text;

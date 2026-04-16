@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Text;
 
-namespace RavenDB.Samples.Verity.App
+namespace RavenDB.Samples.Verity.App.Infrastructure
 {
     public static class Constants
     {
@@ -13,6 +13,12 @@ namespace RavenDB.Samples.Verity.App
             public const string OpenAiApiKey = "SAMPLES_VERITY_OPENAI_API_KEY";
             public const string SecEdgarUserAgent = "SAMPLES_VERITY_SEC_EDGAR_USER_AGENT";
             public const string DumpFilePath = "SAMPLES_VERITY_DUMP_FILE_PATH";
+
+            // Azure Storage – Remote Attachments
+            public const string AzureStorageContainer = "SAMPLES_VERITY_AZURE_STORAGE_CONTAINER";
+            public const string AzureAccountName = "SAMPLES_VERITY_AZURE_ACCOUNT_NAME";
+            public const string AzureAccountKey = "SAMPLES_VERITY_AZURE_ACCOUNT_KEY";
+            public const string AzureRemoteFolderName = "SAMPLES_VERITY_AZURE_REMOTE_FOLDER_NAME"; // Optional
         }
 
         public static class DocumentIds

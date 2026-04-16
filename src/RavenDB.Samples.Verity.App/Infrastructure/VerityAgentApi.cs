@@ -11,7 +11,7 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-namespace RavenDB.Samples.Verity.App;
+namespace RavenDB.Samples.Verity.App.Infrastructure;
 
 public class VerityAgentApi(
     ILogger<VerityAgentApi> logger,

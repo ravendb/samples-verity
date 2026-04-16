@@ -1,16 +1,18 @@
 using Microsoft.Extensions.Logging;
 using Raven.Client.Documents;
+using Raven.Client.Documents.Operations.Attachments;
 using RavenDB.Samples.Verity.App.Models;
 using System.Globalization;
 using System.Text;
 using System.Text.Json;
 
-namespace RavenDB.Samples.Verity.App;
+namespace RavenDB.Samples.Verity.App.Infrastructure;
 
 public class SecEdgarApi(HttpClient http, IDocumentStore store, ILogger<SecEdgarApi> logger)
 {
     private const string EdgarBase = "https://www.sec.gov";
     private const string DataBase  = "https://data.sec.gov";
+    private const string RemoteId = "verity-azure-storage";
     private string Cik = null!;
     private string CompanyName = null!;
     private DateTime FiscalYearStart = default;
@@ -94,14 +96,19 @@ public class SecEdgarApi(HttpClient http, IDocumentStore store, ILogger<SecEdgar
             return;
         }
 
-        // ── Clean + split into Part documents ────────────────────────────────
+        // ── Clean + split document if need be ────────────────────────────────
         await using var rawStream     = await response.Content.ReadAsStreamAsync(ct);
         using  var      cleanedStream = HtmProcessor.CleanHtml(rawStream);
 
+        const int maxSize = 600 * 1024; // 600 KB
         byte[] allBytes = cleanedStream.ToArray();
+        const int chunkBytes = 200 * 1024; // 200 KB
+        int total = 0;
 
-        const int chunkBytes = 200 * 1024;                          // 200 KB
-        int total = Math.Max(1, (int)Math.Ceiling((double)allBytes.Length / chunkBytes));
+        if (allBytes.Length > maxSize)
+        {
+            total = Math.Max(1, (int)Math.Ceiling((double)allBytes.Length / chunkBytes));
+        }
 
         // ── Build report document ────────────────────────────────────────────
         var report = new Report
@@ -121,6 +128,20 @@ public class SecEdgarApi(HttpClient http, IDocumentStore store, ILogger<SecEdgar
 
         await session.StoreAsync(report, docId, ct);
 
+        var remoteParameters = new RemoteAttachmentParameters(
+            identifier: RemoteId, // The remote destination ID you’ve defined
+            at: DateTime.UtcNow.AddMinutes(10));
+
+        var storeParameters = new StoreAttachmentParameters($"form{formType}.htm", cleanedStream)
+        {
+            RemoteParameters = remoteParameters,
+            ContentType = "text/html"
+        };
+
+        session.Advanced.Attachments.Store(docId, storeParameters);
+
+        await session.SaveChangesAsync(ct);
+
         // ── Archive metadata ─────────────────────────────────────────────────
 
         int monthsBeforeSub = 12 - FiscalYearStart.Month;
@@ -136,6 +157,10 @@ public class SecEdgarApi(HttpClient http, IDocumentStore store, ILogger<SecEdgar
         if (DateTime.UtcNow >= FiscalYearStart.AddYears(filing.ReportDate.Year - yearsToSub + 2))
         {
             logger.LogInformation("Report {DocId} is already archived based on fiscal year start – skipping parts.", docId);
+            return;
+        }else if (total == 0)
+        {
+            logger.LogInformation("Report {DocId} is under size limit – no need to split into parts.", docId);
             return;
         }
 

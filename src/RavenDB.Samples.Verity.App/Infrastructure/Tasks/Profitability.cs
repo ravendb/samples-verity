@@ -16,7 +16,8 @@ namespace RavenDB.Samples.Verity.App.Infrastructure.Tasks
             GenAiTransformation = new GenAiTransformation
             {
                 Script = @"
-if (!this.ChunkAnalyses || this.ChunkAnalyses.length < this.ChunkCount) return;
+if (this.ChunkCount == 0){}
+else if (!this.ChunkAnalyses || this.ChunkAnalyses.length < this.ChunkCount) return;
 
 var metadata = this['@metadata'];
 if (metadata['@archived'] === true) return;
@@ -27,13 +28,21 @@ if (metadata['@archive-at']) {
     if (today >= archiveAt) return;
 }
 
-var analyses = [];
-for (var i = 0; i < this.ChunkAnalyses.length; i++) {
-    analyses.push('=== Part ' + (i + 1) + ' of ' + this.ChunkCount + ' ===\n' + this.ChunkAnalyses[i]);
+var text = 'unknown';
+
+if (this.ChunkCount == 0) {
+    text = loadAttachment(`form${this.FormType}.htm`);    
+}
+else {
+    var analyses = [];
+    for (var i = 0; i < this.ChunkAnalyses.length; i++) {
+        analyses.push('=== Part ' + (i + 1) + ' of ' + this.ChunkCount + ' ===\n' + this.ChunkAnalyses[i]);
+        text = analyses.join('\n\n');
+    }
 }
 
 ai.genContext({ CompanyId: this.CompanyId, Id: id(this) })
-  .withText(analyses.join('\n\n'));"
+  .withText(text);"
             };
 
             Prompt =
