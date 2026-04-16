@@ -113,13 +113,6 @@
   onMount(async () => {
     try {
       report = await getReport(accession);
-      if (report.companyId) {
-        // companyId format: "Companies/Apple" — extract CIK via getCompanies or use stored CIK
-        // We fetch company by extracting CIK from the report's companyId isn't available directly,
-        // so we use the reports endpoint with the full company fetch by id isn't supported yet.
-        // For now: attempt to load company using cik stored separately.
-        // Since we don't have a /api/company?id= endpoint, skip gracefully.
-      }
       revisions = (await getAuditRevisions(report.id)) ?? [];
       status = 'ok';
     } catch (e: unknown) {
@@ -141,7 +134,7 @@
 
   function fmtAbbr(n: number | null | undefined, abbr: string | null | undefined): string {
     if (n == null) return '—';
-    return `${n.toLocaleString('en-US')} ${abbr ?? ''}`.trim();
+    return `$${n.toLocaleString('en-US')} ${abbr ?? ''}`.trim();
   }
 
   $effect(() => {
@@ -221,7 +214,7 @@
           </div>
           <div class="fin-item">
             <span class="fin-label">Assets</span>
-            <span class="fin-value">{fmtAbbr(report.assetsValue, report.abbreviation)}</span>
+            <span class="fin-value">{fmtAbbr(report.assetsVal, report.abbreviation)}</span>
           </div>
           <div class="fin-item">
             <span class="fin-label">Income / Loss</span>

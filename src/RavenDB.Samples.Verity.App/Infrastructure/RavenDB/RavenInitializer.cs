@@ -27,7 +27,7 @@ namespace RavenDB.Samples.Verity.App.Infrastructure.RavenDB
             Destinations = new Dictionary<string, RemoteAttachmentsDestinationConfiguration>
             {
                 {
-                    "verity-azure-storage",
+                    Environment.GetEnvironmentVariable(Constants.EnvVars.AzureStorageIdentity),
                     new RemoteAttachmentsDestinationConfiguration
                     {
                         AzureSettings = new RemoteAttachmentsAzureSettings

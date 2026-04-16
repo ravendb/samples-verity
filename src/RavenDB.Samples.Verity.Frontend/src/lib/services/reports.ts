@@ -14,7 +14,7 @@ export interface Report {
 	abbreviation?:   string | null;
 	revenues?:       number | null;
 	expenses?:       number | null;
-	assetsValue?:    number | null;
+	assetsVal?:		 number | null;
 	profitLoss?:     number | null;
 	profitable?:     boolean | null;
 	summary?:        string | null;

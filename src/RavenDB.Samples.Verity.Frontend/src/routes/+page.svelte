@@ -357,7 +357,8 @@
 	border: 1.5px solid #243550;
 	border-radius: 7px;
 	outline: none;
-	color: #d8e4f0;
+	color: #9ebddb;
+	background: #121d30;
 	transition: border-color 0.15s;
 	}
 	input:focus { border-color: #5b9bd5; }
