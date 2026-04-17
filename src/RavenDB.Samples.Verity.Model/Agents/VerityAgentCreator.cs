@@ -1,9 +1,8 @@
 using Newtonsoft.Json;
 using Raven.Client.Documents;
 using Raven.Client.Documents.Operations.AI.Agents;
-using RavenDB.Samples.Verity.App.Models.VerityAgent;
 
-namespace RavenDB.Samples.Verity.App.Infrastructure.RavenDB;
+namespace RavenDB.Samples.Verity.Model.Agents;
 
 public static class VerityAgentCreator
 {

@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using Raven.Migrations;
 using Raven.Client.Documents;
 using Raven.Client.Documents.AI;
 using Raven.Client.Documents.Linq;
@@ -12,13 +13,11 @@ using Raven.Client.Documents.Operations.ConnectionStrings;
 using Raven.Client.Documents.Operations.Revisions;
 using Raven.Client.Documents.Session;
 using RavenDB.Samples.Verity.App.Infrastructure;
-using RavenDB.Samples.Verity.App.Models;
+using RavenDB.Samples.Verity.Model;
 using System.Globalization;
 using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
-using UglyToad.PdfPig;
-using UglyToad.PdfPig.Content;
 
 namespace RavenDB.Samples.Verity.App;
 
@@ -28,8 +27,26 @@ public class Api(
     IAsyncDocumentSession session,
     IDocumentStore store,
     IConfiguration config,
-    SecEdgarApi edgar)
+    SecEdgarApi edgar,
+    MigrationRunner migrations)
 {
+    private const string HeaderCommandKey = "X-Command-Key";
+
+    // POST /api/migrate
+    [Function(nameof(Migrate))]
+    public IActionResult Migrate([HttpTrigger("post", Route = "migrate")] HttpRequest req)
+    {
+        var actual   = req.Headers[HeaderCommandKey].ToString();
+        var expected = config.GetValue<string>(Constants.EnvVars.CommandKey);
+
+        if (actual != expected)
+            return new StatusCodeResult(StatusCodes.Status403Forbidden);
+
+        migrations.Run();
+
+        return new StatusCodeResult(StatusCodes.Status202Accepted);
+    }
+
 
     // OPTIONS * — CORS preflight handler
     [Function(nameof(CorsPreflightHandler))]
@@ -152,8 +169,13 @@ public class Api(
         if (string.IsNullOrWhiteSpace(cik))
             return new BadRequestObjectResult("Provide the 'cik' parameter (e.g., ?cik=320193).");
 
-        var company = await edgar.FetchAndSaveCompanyAsync(cik, req.HttpContext.RequestAborted);
-        return new JsonResult(company);
+        var paddedCik = cik.Trim().PadLeft(10, '0');
+        var existing  = await session.Query<Company>().FirstOrDefaultAsync(c => c.Cik == paddedCik, req.HttpContext.RequestAborted);
+        if (existing is not null)
+            return new ConflictObjectResult($"Company with CIK {paddedCik} already exists.");
+
+        var company = await edgar.FetchAndSaveCompanyAsync(paddedCik, req.HttpContext.RequestAborted);
+        return new JsonResult(company) { StatusCode = StatusCodes.Status201Created };
     }
 
     // POST /api/fetch-10q?cik=320193&max=5

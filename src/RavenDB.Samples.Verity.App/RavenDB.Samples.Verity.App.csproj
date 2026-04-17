@@ -17,12 +17,14 @@
     <PackageReference Include="Microsoft.Azure.Functions.Worker.Extensions.Http.AspNetCore" Version="2.1.0" />
     <PackageReference Include="Microsoft.Azure.Functions.Worker.Sdk" Version="2.0.7" />
     <PackageReference Include="HtmlAgilityPack" Version="1.11.72" />
-    <PackageReference Include="PdfPig" Version="0.1.14" />
     <PackageReference Include="RavenDB.Client" Version="7.2.1" />
+    <PackageReference Include="RavenMigrations" Version="6.0.2" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\RavenDB.Samples.Verity.ServiceDefaults\RavenDB.Samples.Verity.ServiceDefaults.csproj" />
+    <ProjectReference Include="..\RavenDB.Samples.Verity.Setup\RavenDB.Samples.Verity.Setup.csproj" />
+    <ProjectReference Include="..\RavenDB.Samples.Verity.Model\RavenDB.Samples.Verity.Model.csproj" />
   </ItemGroup>
 
 </Project>

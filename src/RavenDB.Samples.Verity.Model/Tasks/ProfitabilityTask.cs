@@ -1,21 +1,21 @@
 using Newtonsoft.Json;
 using Raven.Client.Documents.Operations.AI;
 
-namespace RavenDB.Samples.Verity.App.Infrastructure.Tasks
-{
-    public class ProfitabilityTask : GenAiConfiguration
-    {
-        public ProfitabilityTask()
-        {
-            Name = "ProfitabilityAnalysis";
-            Identifier = "profitability-analysis";
-            ConnectionStringName = "Verity AI Model";
-            Disabled = false;
-            Collection = "Reports";
+namespace RavenDB.Samples.Verity.Model.Tasks;
 
-            GenAiTransformation = new GenAiTransformation
-            {
-                Script = @"
+public class ProfitabilityTask : GenAiConfiguration
+{
+    public ProfitabilityTask()
+    {
+        Name                 = "ProfitabilityAnalysis";
+        Identifier           = "profitability-analysis";
+        ConnectionStringName = "Verity AI Model";
+        Disabled             = false;
+        Collection           = "Reports";
+
+        GenAiTransformation = new GenAiTransformation
+        {
+            Script = @"
 if (this.ChunkCount == 0){}
 else if (!this.ChunkAnalyses || this.ChunkAnalyses.length < this.ChunkCount) return;
 
@@ -31,7 +31,7 @@ if (metadata['@archive-at']) {
 var text = 'unknown';
 
 if (this.ChunkCount == 0) {
-    text = loadAttachment(`form${this.FormType}.htm`);    
+    text = loadAttachment(`form${this.FormType}.htm`);
 }
 else {
     var analyses = [];
@@ -43,9 +43,9 @@ else {
 
 ai.genContext({ CompanyId: this.CompanyId, Id: id(this) })
   .withText(text);"
-            };
+        };
 
-            Prompt =
+        Prompt =
 "You are a senior financial analyst. You are receiving pre-processed summaries of " +
 "all sections of an SEC filing (10-K or 10-Q), each summarised by a separate analysis step. " +
 "Synthesise these partial analyses into a final financial assessment of the company.\n\n" +
@@ -60,17 +60,17 @@ ai.genContext({ CompanyId: this.CompanyId, Id: id(this) })
 "- Abbreviation: the unit abbreviation if applicable (e.g., mil for millions, k for thousands), or empty string\n" +
 "- Summary: a concise synthesis of the full report (keep under 2048 characters)";
 
-            SampleObject = JsonConvert.SerializeObject(new
-            {
-                Revenues = 0,
-                Expenses = 0,
-                AssetsVal = 0,
-                Abbreviation = "",
-                Profitable = true,
-                Summary = "Detailed description of the quarter"
-            });
+        SampleObject = JsonConvert.SerializeObject(new
+        {
+            Revenues     = 0,
+            Expenses     = 0,
+            AssetsVal    = 0,
+            Abbreviation = "",
+            Profitable   = true,
+            Summary      = "Detailed description of the quarter"
+        });
 
-            UpdateScript = @"
+        UpdateScript = @"
 this.Revenues     = $output.Revenues;
 this.Expenses     = $output.Expenses;
 this.AssetsVal    = $output.AssetsVal;
@@ -84,7 +84,6 @@ for (var i = 1; i <= this.ChunkCount; i++) {
     del('Part/' + i + '/' + this.AccessionNumber);
 }";
 
-            MaxConcurrency = 8;
-        }
+        MaxConcurrency = 8;
     }
 }

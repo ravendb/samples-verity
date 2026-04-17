@@ -1,4 +1,5 @@
-namespace RavenDB.Samples.Verity.App.Models;
+namespace RavenDB.Samples.Verity.Model;
+
 public class ReportPart
 {
     public string  Id              { get; set; } = null!;

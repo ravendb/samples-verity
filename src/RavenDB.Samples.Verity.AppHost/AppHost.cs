@@ -48,15 +48,30 @@ var functions = builder.AddAzureFunctionsProject<RavenDB_Samples_Verity_App>("ap
     .WaitFor(db)
 
     .WithEnvironment("SAMPLES_VERITY_SEC_EDGAR_USER_AGENT", builder.Configuration["SecEdgar:UserAgent"])
-    .WithEnvironment("SAMPLES_VERITY_DUMP_FILE_PATH", builder.Configuration["RavenDB:DumpFilePath"])
     .WithEnvironment("SAMPLES_VERITY_OPENAI_API_KEY", builder.Configuration["OpenAI:ApiKey"])
 
     // Azure Storage – Remote Attachments
-    .WithEnvironment("SAMPLES_VERITY_AZURE_STORAGE_IDENTITY", builder.Configuration["AzureStorage:Identity"]) // Remote destination Id, could be many
+    .WithEnvironment("SAMPLES_VERITY_AZURE_STORAGE_IDENTITY", builder.Configuration["AzureStorage:Identity"])
     .WithEnvironment("SAMPLES_VERITY_AZURE_STORAGE_CONTAINER", builder.Configuration["AzureStorage:StorageContainer"])
     .WithEnvironment("SAMPLES_VERITY_AZURE_ACCOUNT_NAME", builder.Configuration["AzureStorage:AccountName"])
     .WithEnvironment("SAMPLES_VERITY_AZURE_ACCOUNT_KEY", builder.Configuration["AzureStorage:AccountKey"])
-    .WithEnvironment("SAMPLES_VERITY_AZURE_REMOTE_FOLDER_NAME", builder.Configuration["AzureStorage:RemoteFolderName"]); // Optional
+    .WithEnvironment("SAMPLES_VERITY_AZURE_REMOTE_FOLDER_NAME", builder.Configuration["AzureStorage:RemoteFolderName"]) // Optional
+
+    .WithEnvironment("CommandKey", builder.Configuration["CommandKey"])
+    .WithHttpCommand(
+        path: "/api/migrate",
+        displayName: "Migrate DB",
+        commandOptions: new HttpCommandOptions
+        {
+            Description = "Runs database migrations",
+            PrepareRequest = context =>
+            {
+                context.Request.Headers.Add("X-Command-Key", builder.Configuration["CommandKey"]);
+                return Task.CompletedTask;
+            },
+            IconName = "databaseArrowUp",
+            IsHighlighted = true
+        });
 
 // Frontend
 var frontend = builder.AddNpmApp("Frontend", "../RavenDB.Samples.Verity.Frontend", "dev")

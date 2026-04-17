@@ -1,0 +1,100 @@
+using Raven.Client.Documents.Attachments;
+using Raven.Client.Documents.Operations;
+using Raven.Client.Documents.Operations.Attachments.Remote;
+using Raven.Client.Documents.Operations.DataArchival;
+using Raven.Client.Documents.Operations.Expiration;
+using Raven.Client.Documents.Operations.Revisions;
+using Raven.Client.ServerWide.Operations;
+using Raven.Client.ServerWide.Operations.Configuration;
+using Raven.Migrations;
+
+namespace RavenDB.Samples.Verity.Setup.Migrations;
+
+[Migration(1)]
+public sealed class ConfigureDatabase(MigrationContext context) : Migration
+{
+    public override void Up()
+    {
+        // 0) DATABASE SETTINGS
+        DocumentStore.Maintenance.Send(new PutDatabaseSettingsOperation(DocumentStore.Database,
+            new Dictionary<string, string>
+            {
+                ["Ai.GenAi.GenAiSendToModelTimeoutInSec"] = "180"
+            }));
+
+        DocumentStore.Maintenance.Server.Send(new ToggleDatabasesStateOperation(DocumentStore.Database, true));
+        DocumentStore.Maintenance.Server.Send(new ToggleDatabasesStateOperation(DocumentStore.Database, false));
+
+        // 1) REMOTE ATTACHMENTS
+        var remoteAttachmentsConfig = new RemoteAttachmentsConfiguration
+        {
+            Destinations = new Dictionary<string, RemoteAttachmentsDestinationConfiguration>
+            {
+                {
+                    context.AzureStorageIdentity,
+                    new RemoteAttachmentsDestinationConfiguration
+                    {
+                        AzureSettings = new RemoteAttachmentsAzureSettings
+                        {
+                            StorageContainer = context.AzureStorageContainer,
+                            AccountName      = context.AzureAccountName,
+                            AccountKey       = context.AzureAccountKey,
+                            RemoteFolderName = context.AzureRemoteFolderName
+                        },
+                        Disabled = false
+                    }
+                }
+            },
+            CheckFrequencyInSec = 6000,
+            MaxItemsToProcess   = 25,
+            ConcurrentUploads   = 5
+        };
+
+        DocumentStore.Maintenance.Send(new ConfigureRemoteAttachmentsOperation(remoteAttachmentsConfig));
+
+        // 2) DATA ARCHIVAL
+        DocumentStore.Maintenance.Send(new ConfigureDataArchivalOperation(new DataArchivalConfiguration
+        {
+            Disabled              = false,
+            ArchiveFrequencyInSec = 60,
+            MaxItemsToProcess     = 100
+        }));
+
+        // 3) REVISIONS
+        DocumentStore.Maintenance.Send(new ConfigureRevisionsOperation(new RevisionsConfiguration
+        {
+            Collections = new Dictionary<string, RevisionsCollectionConfiguration>
+            {
+                {
+                    "Audits", new RevisionsCollectionConfiguration
+                    {
+                        Disabled      = false,
+                        PurgeOnDelete = true
+                    }
+                }
+            }
+        }));
+
+        // 4) EXPIRATION
+        DocumentStore.Maintenance.Send(new ConfigureExpirationOperation(new ExpirationConfiguration
+        {
+            Disabled             = false,
+            DeleteFrequencyInSec = 60
+        }));
+    }
+
+    public override void Down()
+    {
+        DocumentStore.Maintenance.Send(new ConfigureRemoteAttachmentsOperation(
+            new RemoteAttachmentsConfiguration { Destinations = new Dictionary<string, RemoteAttachmentsDestinationConfiguration>() }));
+
+        DocumentStore.Maintenance.Send(new ConfigureDataArchivalOperation(
+            new DataArchivalConfiguration { Disabled = true }));
+
+        DocumentStore.Maintenance.Send(new ConfigureRevisionsOperation(
+            new RevisionsConfiguration()));
+
+        DocumentStore.Maintenance.Send(new ConfigureExpirationOperation(
+            new ExpirationConfiguration { Disabled = true }));
+    }
+}

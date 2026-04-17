@@ -3,4 +3,6 @@
   <Project Path="RavenDB.Samples.Verity.AppHost/RavenDB.Samples.Verity.AppHost.csproj" />
   <Project Path="RavenDB.Samples.Verity.InAppSubHandler/RavenDB.Samples.Verity.InAppSubHandler.csproj" Id="4c5f723e-c234-41ad-ad65-927392c2e7f9" />
   <Project Path="RavenDB.Samples.Verity.ServiceDefaults/RavenDB.Samples.Verity.ServiceDefaults.csproj" />
+  <Project Path="RavenDB.Samples.Verity.Setup/RavenDB.Samples.Verity.Setup.csproj" Id="86b61c56-8650-4ae9-837e-6dd86e031144" />
+  <Project Path="RavenDB.Samples.Verity.Model/RavenDB.Samples.Verity.Model.csproj" />
 </Solution>

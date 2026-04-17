@@ -2,7 +2,7 @@ using Microsoft.Extensions.Logging;
 using Raven.Client.Documents;
 using Raven.Client.Documents.Operations.Attachments;
 using Raven.Client.Documents.Subscriptions;
-using RavenDB.Samples.Verity.App.Models;
+using RavenDB.Samples.Verity.Model;
 using Sparrow;
 using System.Globalization;
 using System.Text;
@@ -218,10 +218,9 @@ public class SecEdgarApi(HttpClient http, IDocumentStore store, ILogger<SecEdgar
 
     // ── 4. Fetching and saving company data ──────────────────────────────────
 
-    public async Task<Company> FetchAndSaveCompanyAsync(string cik, CancellationToken ct = default)
+    public async Task<Company> FetchAndSaveCompanyAsync(string paddedCik, CancellationToken ct = default)
     {
-        var paddedCik = cik.Trim().PadLeft(10, '0');
-        var url       = $"{DataBase}/submissions/CIK{paddedCik}.json";
+        var url = $"{DataBase}/submissions/CIK{paddedCik}.json";
 
         using var response = await http.GetAsync(url, ct);
         response.EnsureSuccessStatusCode();
@@ -230,7 +229,7 @@ public class SecEdgarApi(HttpClient http, IDocumentStore store, ILogger<SecEdgar
         using var doc  = await JsonDocument.ParseAsync(stream, cancellationToken: ct);
         var       root = doc.RootElement;
 
-        var companyName     = root.GetProperty("name").GetString() ?? paddedCik;
+        var companyName = root.GetProperty("name").GetString() ?? paddedCik;
         var fiscalYearEnd   = root.TryGetProperty("fiscalYearEnd", out var fye) ? fye.GetString() : null;
         var fiscalYearStart = new DateTime(1, int.Parse(fiscalYearEnd!.Substring(0, 2)), 1, 0, 0, 0, DateTimeKind.Utc);
         fiscalYearStart     = fiscalYearStart.AddMonths(1);
@@ -240,11 +239,11 @@ public class SecEdgarApi(HttpClient http, IDocumentStore store, ILogger<SecEdgar
 
         var company = new Company
         {
-            Id              = $"Companies/{companyName}",
-            Name            = companyName,
-            Cik             = paddedCik,
-            Sic             = root.TryGetProperty("sic",            out var sic)     ? sic.GetString()     : null,
-            SicDescription  = root.TryGetProperty("sicDescription", out var sicDesc) ? sicDesc.GetString() : null,
+            Id = $"Companies/{companyName}",
+            Name = companyName,
+            Cik = paddedCik,
+            Sic = root.TryGetProperty("sic", out var sic) ? sic.GetString() : null,
+            SicDescription = root.TryGetProperty("sicDescription", out var sicDesc) ? sicDesc.GetString() : null,
             FiscalYearStart = fiscalYearStart,
         };
 

@@ -2,10 +2,10 @@ using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Builder;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Raven.Migrations;
 using RavenDB.Samples.Verity.App.Application.Usage;
 using RavenDB.Samples.Verity.App.Infrastructure;
-using RavenDB.Samples.Verity.App.Infrastructure.Middleware;
-using RavenDB.Samples.Verity.App.Infrastructure.RavenDB;
+using RavenDB.Samples.Verity.Setup.Migrations;
 
 var builder = FunctionsApplication.CreateBuilder(args);
 
@@ -16,7 +16,23 @@ builder.AddRavenDBClient("verity", settings =>
     settings.CreateDatabase = true;
 });
 
-builder.Services.AddHostedService<RavenInitializer>();
+builder.Services.AddHostedService<MigrationStartup>();
+
+builder.Services.AddSingleton(new MigrationContext(
+    openAiApiKey:                       Environment.GetEnvironmentVariable(Constants.EnvVars.OpenAiApiKey) ?? "",
+    azureStorageIdentity:               Environment.GetEnvironmentVariable(Constants.EnvVars.AzureStorageIdentity) ?? "",
+    azureStorageContainer:              Environment.GetEnvironmentVariable(Constants.EnvVars.AzureStorageContainer) ?? "",
+    azureAccountName:                   Environment.GetEnvironmentVariable(Constants.EnvVars.AzureAccountName) ?? "",
+    azureAccountKey:                    Environment.GetEnvironmentVariable(Constants.EnvVars.AzureAccountKey) ?? "",
+    azureRemoteFolderName:              Environment.GetEnvironmentVariable(Constants.EnvVars.AzureRemoteFolderName) ?? "",
+    azureStorageQueuesConnectionString: Environment.GetEnvironmentVariable("BindingConnection") ?? "",
+    secEdgarUserAgent:                  Environment.GetEnvironmentVariable(Constants.EnvVars.SecEdgarUserAgent) ?? ""
+));
+
+builder.Services.AddRavenDbMigrations(migrations =>
+{
+    migrations.Assemblies = [typeof(MigrationContext).Assembly];
+});
 
 builder.Services.AddCors(options =>
 {
@@ -50,3 +66,9 @@ builder.Services
     .ConfigureFunctionsApplicationInsights();
 
 builder.Build().Run();
+
+internal sealed class MigrationStartup(MigrationRunner migrations) : IHostedService
+{
+    public Task StartAsync(CancellationToken cancellationToken) { migrations.Run(); return Task.CompletedTask; }
+    public Task StopAsync(CancellationToken cancellationToken) => Task.CompletedTask;
+}

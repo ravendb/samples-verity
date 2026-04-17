@@ -1,7 +1,7 @@
 using Newtonsoft.Json;
 using Raven.Client.Documents.Operations.AI;
 
-namespace RavenDB.Samples.Verity.App.Infrastructure.Tasks;
+namespace RavenDB.Samples.Verity.Model.Tasks;
 
 public class ChunkAnalysisTask : GenAiConfiguration
 {

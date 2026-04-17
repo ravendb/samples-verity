@@ -12,7 +12,6 @@ namespace RavenDB.Samples.Verity.App.Infrastructure
             public const string MaxSessionRequestsPer30Seconds = "SAMPLES_VERITY_MAX_SESSION_REQUESTS_PER_30_SECONDS";
             public const string OpenAiApiKey = "SAMPLES_VERITY_OPENAI_API_KEY";
             public const string SecEdgarUserAgent = "SAMPLES_VERITY_SEC_EDGAR_USER_AGENT";
-            public const string DumpFilePath = "SAMPLES_VERITY_DUMP_FILE_PATH";
 
             // Azure Storage – Remote Attachments
             public const string AzureStorageIdentity = "SAMPLES_VERITY_AZURE_STORAGE_IDENTITY"; 
@@ -20,6 +19,9 @@ namespace RavenDB.Samples.Verity.App.Infrastructure
             public const string AzureAccountName = "SAMPLES_VERITY_AZURE_ACCOUNT_NAME";
             public const string AzureAccountKey = "SAMPLES_VERITY_AZURE_ACCOUNT_KEY";
             public const string AzureRemoteFolderName = "SAMPLES_VERITY_AZURE_REMOTE_FOLDER_NAME"; // Optional
+            
+            // Migration
+            public const string CommandKey = "CommandKey";
         }
 
         public static class DocumentIds

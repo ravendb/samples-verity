@@ -1,4 +1,4 @@
-namespace RavenDB.Samples.Verity.App.Models;
+namespace RavenDB.Samples.Verity.Model;
 
 public class Report
 {
@@ -17,8 +17,7 @@ public class Report
 
     public List<string>? ChunkAnalyses { get; set; }
 
-    // ── AI-synthesised fields (written by ProfitabilityTask) ─────────────────
-
+    // AI-synthesised fields (written by ProfitabilityTask)
     public int?    Revenues     { get; set; }
     public int?    Expenses     { get; set; }
     public int?    AssetsVal    { get; set; }
