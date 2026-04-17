@@ -117,6 +117,7 @@ class SamplesUIWrapper extends HTMLElement {
 
         this.setTheme(this.getAttribute("theme"));
         this.shadowRoot.querySelector(".source-link").href = this.getAttribute("sourceLink");
+
     }
 
     validateAttributes() {

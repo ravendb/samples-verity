@@ -1,5 +1,6 @@
 <Solution>
   <Project Path="RavenDB.Samples.Verity.App/RavenDB.Samples.Verity.App.csproj" />
   <Project Path="RavenDB.Samples.Verity.AppHost/RavenDB.Samples.Verity.AppHost.csproj" />
+  <Project Path="RavenDB.Samples.Verity.InAppSubHandler/RavenDB.Samples.Verity.InAppSubHandler.csproj" Id="4c5f723e-c234-41ad-ad65-927392c2e7f9" />
   <Project Path="RavenDB.Samples.Verity.ServiceDefaults/RavenDB.Samples.Verity.ServiceDefaults.csproj" />
 </Solution>

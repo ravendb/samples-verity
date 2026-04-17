@@ -60,6 +60,6 @@ if (report) {
     put(this.ReportId, report);
 }";
 
-        MaxConcurrency = 4;
+        MaxConcurrency = 8;
     }
 }

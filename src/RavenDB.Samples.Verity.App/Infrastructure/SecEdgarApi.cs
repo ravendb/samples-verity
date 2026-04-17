@@ -1,7 +1,9 @@
 using Microsoft.Extensions.Logging;
 using Raven.Client.Documents;
 using Raven.Client.Documents.Operations.Attachments;
+using Raven.Client.Documents.Subscriptions;
 using RavenDB.Samples.Verity.App.Models;
+using Sparrow;
 using System.Globalization;
 using System.Text;
 using System.Text.Json;
@@ -123,7 +125,7 @@ public class SecEdgarApi(HttpClient http, IDocumentStore store, ILogger<SecEdgar
             Year            = filing.ReportDate.Year,
             FormType        = formType,
             SourceUrl       = htmUrl,
-            ChunkCount      = total,
+            ChunkCount      = total
         };
 
         await session.StoreAsync(report, docId, ct);
@@ -171,7 +173,7 @@ public class SecEdgarApi(HttpClient http, IDocumentStore store, ILogger<SecEdgar
 
             var part = new ReportPart
             {
-                Id              = $"Part/{i}/{filing.AccessionNumber}",
+                Id              = $"ReportParts/{i}/{filing.AccessionNumber}",
                 ReportId        = docId,
                 AccessionNumber = filing.AccessionNumber,
                 FormType        = formType,
@@ -245,6 +247,22 @@ public class SecEdgarApi(HttpClient http, IDocumentStore store, ILogger<SecEdgar
             SicDescription  = root.TryGetProperty("sicDescription", out var sicDesc) ? sicDesc.GetString() : null,
             FiscalYearStart = fiscalYearStart,
         };
+
+        await store.Subscriptions.CreateAsync<Report>(new SubscriptionCreationOptions<Report>()
+        {
+            Name = $"New-Reports-{company.Cik}",
+
+            // The subscription criteria:
+            Filter = x => x.CompanyId == company.Id,
+
+            // The object properties that will be sent for each matching document:
+            Projection = x => new
+            {
+                CompanyName = x.CompanyId.Split('/').Last(),
+                AccessionNumber = x.AccessionNumber,
+                Filing = $"{x.FormType} for period ended {x.ReportDate}"
+            }
+        }, token: ct);
 
         using var session = store.OpenAsyncSession();
         await session.StoreAsync(company, company.Id, ct);

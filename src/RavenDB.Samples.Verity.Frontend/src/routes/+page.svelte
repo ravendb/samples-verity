@@ -66,9 +66,7 @@
 
 <main>
   <header>
-    <div class="header-left">
-      <h1>Verity: The Fiscal Truth Engine</h1>
-    </div>
+    <h1><a href="/" class="verity-brand">Verity:</a> The Fiscal Truth Engine</h1>
     <button class="add-btn" onclick={openModal}>+ Add Company</button>
   </header>
 
@@ -187,6 +185,7 @@
 	margin: 0;
 	font-size: 1.3rem;
 	font-weight: 600;
+	flex: 1;
 	}
 
 	.badge {

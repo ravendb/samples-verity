@@ -23,6 +23,18 @@
 		background: #192d47;
 	}
 
+	:global(main > header) {
+		box-sizing: border-box;
+		min-height: 60px;
+		height: 60px;
+	}
+
+	:global(.verity-brand) {
+		color: inherit;
+		text-decoration: none;
+	}
+	:global(.verity-brand:hover) { opacity: 0.8; }
+
 	:global(input, button, select, textarea) {
 		font: inherit;
 	}

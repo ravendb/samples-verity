@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { page } from '$app/stores';
+  import { goto } from '$app/navigation';
   import { getReportsByCik, fetch10Q, type Report } from '$lib/services/reports';
   import { getCompany, type Company } from '$lib/services/companies';
 
@@ -16,6 +17,10 @@
   let maxReports    = $state(5);
 
   onMount(loadData);
+
+  $effect(() => {
+    document.title = company ? `Verity - ${company.name}` : 'Verity';
+  });
 
   async function loadData() {
     status = 'loading';
@@ -58,10 +63,11 @@
   }
 
   // ── Chart ────────────────────────────────────────────────────
-  const SVG_W = 500;
-  const SVG_H = 300;
-  const cW    = SVG_W;
-  const cH    = SVG_H;
+  const ML = 56; const MT = 6; const MR = 8; const MB = 36;
+  const cW = 500;
+  const cH = 300;
+  const SVG_W = cW + ML + MR;
+  const SVG_H = cH + MT + MB;
 
   // For 10-K annual reports subtract the 10-Q quarterly values so the bar
   // represents Q4 standalone. Fiscal year ≠ calendar year, so we match
@@ -106,9 +112,22 @@
     Math.max(1, ...chartReports.flatMap(r => [r.revenues ?? 0, r.expenses ?? 0]))
   );
 
-  const yTicks = $derived(
-    Array.from({ length: 6 }, (_, i) => Math.round((chartMaxVal * i) / 5))
-  );
+  function niceStep(maxVal: number): number {
+    if (maxVal <= 0) return 1;
+    const raw = maxVal / 5;
+    const mag = Math.pow(10, Math.floor(Math.log10(raw)));
+    const norm = raw / mag;
+    const nice = norm <= 1 ? 1 : norm <= 2 ? 2 : norm <= 5 ? 5 : 10;
+    return nice * mag;
+  }
+
+  const yTicks = $derived.by(() => {
+    const step  = niceStep(chartMaxVal);
+    const count = Math.ceil(chartMaxVal / step);
+    return Array.from({ length: count + 1 }, (_, i) => i * step);
+  });
+
+  const chartNiceMax = $derived(yTicks.length > 1 ? yTicks[yTicks.length - 1] : chartMaxVal);
 
   // X position for report i out of n (evenly spaced, pinned to edges)
   function xPos(i: number, n: number): number {
@@ -116,7 +135,7 @@
   }
 
   function yPos(val: number): number {
-    return cH - (val / chartMaxVal) * cH;
+    return cH - (val / chartNiceMax) * cH;
   }
 
   function linePoints(key: 'revenues' | 'expenses'): string {
@@ -134,22 +153,36 @@
     return yearSuffix ? `Q${r.quarter} ${yearSuffix}` : `Q${r.quarter}`;
   }
 
+  function abbrevMultiplier(abbrev: string | null | undefined): number {
+    switch (abbrev?.toLowerCase().trim()) {
+      case 'bil': case 'billions': case 'b': return 1_000_000_000;
+      case 'mil': case 'millions': case 'm': return 1_000_000;
+      case 'k':   case 'thousands':          return 1_000;
+      default: return 1;
+    }
+  }
+
+  const chartScale = $derived(
+    abbrevMultiplier(chartReports.find(r => r.abbreviation)?.abbreviation)
+  );
+
   function fmtAxis(n: number): string {
-    if (n >= 1_000_000_000) return `$${(n / 1_000_000_000).toFixed(1)}B`;
-    if (n >= 1_000_000)     return `$${(n / 1_000_000).toFixed(0)}M`;
-    if (n >= 1_000)         return `$${(n / 1_000).toFixed(0)}K`;
-    return `$${n}`;
+    const actual = n * chartScale;
+    if (actual >= 1_000_000_000) return `$${(actual / 1_000_000_000).toFixed(1)}B`;
+    if (actual >= 1_000_000)     return `$${(actual / 1_000_000).toFixed(0)}M`;
+    if (actual >= 1_000)         return `$${(actual / 1_000).toFixed(0)}K`;
+    return `$${actual}`;
   }
 </script>
 
 <main>
   <header>
-    <a href="/" class="back-btn">← Companies</a>
     {#if company}
-      <h1>{company.name}</h1>
+      <h1><a href="/" class="verity-brand">Verity:</a> {company.name}</h1>
     {:else}
-      <h1>Company</h1>
+      <h1><a href="/" class="verity-brand">Verity:</a> Company</h1>
     {/if}
+    <a href="/" class="back-btn">← Back</a>
     <span class="badge">{reports.length} report{reports.length !== 1 ? 's' : ''}</span>
   </header>
 
@@ -248,7 +281,7 @@
               </thead>
               <tbody>
                 {#each reports as r}
-                  <tr class="clickable-row" onclick={() => window.location.href = `/reports/${encodeURIComponent(r.accessionNumber)}`}>
+                  <tr class="clickable-row" onclick={() => goto(`/companies/${encodeURIComponent(cik)}/reports/${encodeURIComponent(r.accessionNumber)}`)}>
                     <td><span class="tag" headers="Type">{r.formType}</span></td>
                     <td class="center" headers="Quarter">{r.year} - {r.quarter != null ? `Q${r.quarter}` : '—'}</td>
                     <td class="center" headers="ReportDate">{r.reportDate}</td>
@@ -287,47 +320,49 @@
           </div>
           <div class="chart-wrap">
             <svg viewBox="0 0 {SVG_W} {SVG_H}" width="100%" height="100%" preserveAspectRatio="none" role="img" aria-label="Revenue vs Expenses chart">
-              <!-- Gridlines + Y-axis labels -->
-              {#each yTicks as tick}
-                {@const y = yPos(tick)}
-                <line
-                  x1={0} y1={y} x2={cW} y2={y}
-                  stroke={tick === 0 ? '#aab' : '#e8eef5'}
-                  stroke-width={tick === 0 ? 1.5 : 1}
-                  stroke-dasharray={tick === 0 ? '' : '3,3'}
+              <g transform="translate({ML}, {MT})">
+                <!-- Gridlines + Y-axis labels -->
+                {#each yTicks as tick}
+                  {@const y = yPos(tick)}
+                  <line
+                    x1={0} y1={y} x2={cW} y2={y}
+                    stroke={tick === 0 ? '#aab' : '#e8eef5'}
+                    stroke-width={tick === 0 ? 1.5 : 1}
+                    stroke-dasharray={tick === 0 ? '' : '3,3'}
+                  />
+                  <text x={-8} y={y + 4} text-anchor="end" font-size="11" fill="#7a96b2">{fmtAxis(tick)}</text>
+                {/each}
+
+                <!-- Vertical quarter lines + X labels -->
+                {#each chartReports as r, i}
+                  {@const x = xPos(i, chartReports.length)}
+                  <line
+                    x1={x} y1={0} x2={x} y2={cH}
+                    stroke="#243550" stroke-width="1" stroke-dasharray="3,3"
+                  />
+                  <text
+                    x={x} y={cH + 16}
+                    text-anchor="middle" font-size="10" fill="#7a96b2"
+                    transform={chartReports.length > 7 ? `rotate(-40 ${x} ${cH + 16})` : ''}
+                  >{xLabel(r)}</text>
+                {/each}
+
+                <!-- Revenue line -->
+                <polyline
+                  points={linePoints('revenues')}
+                  fill="none" stroke="#2ecc71" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"
                 />
-                <text x={-8} y={y + 4} text-anchor="end" font-size="11" fill="#7a96b2">{fmtAxis(tick)}</text>
-              {/each}
-
-              <!-- Revenue line -->
-              <polyline
-                points={linePoints('revenues')}
-                fill="none" stroke="#2ecc71" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"
-              />
-              <!-- Expenses line -->
-              <polyline
-                points={linePoints('expenses')}
-                fill="none" stroke="#e74c3c" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"
-              />
-
-              <!-- Vertical quarter lines + X labels -->
-              {#each chartReports as r, i}
-                {@const x = xPos(i, chartReports.length)}
-                <line
-                  x1={x} y1={0} x2={x} y2={cH}
-                  stroke="#243550" stroke-width="1" stroke-dasharray="3,3"
+                <!-- Expenses line -->
+                <polyline
+                  points={linePoints('expenses')}
+                  fill="none" stroke="#e74c3c" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"
                 />
-                <text
-                  x={x} y={cH + 16}
-                  text-anchor="middle" font-size="10" fill="#7a96b2"
-                  transform={chartReports.length > 7 ? `rotate(-40 ${x} ${cH + 16})` : ''}
-                >{xLabel(r)}</text>
-              {/each}
 
-              <!-- Y axis line -->
-              <line x1={0} y1={0} x2={0} y2={cH} stroke="#4a6070" stroke-width="1.5" />
-              <!-- X axis line -->
-              <line x1={0} y1={cH} x2={cW} y2={cH} stroke="#4a6070" stroke-width="1.5" />
+                <!-- Y axis line -->
+                <line x1={0} y1={0} x2={0} y2={cH} stroke="#4a6070" stroke-width="1.5" />
+                <!-- X axis line -->
+                <line x1={0} y1={cH} x2={cW} y2={cH} stroke="#4a6070" stroke-width="1.5" />
+              </g>
             </svg>
           </div>
         </div>
@@ -339,6 +374,11 @@
 <style>
 	main {
 	width: 100%;
+	flex: 1;
+	display: flex;
+	flex-direction: column;
+	min-height: 0;
+	overflow: hidden;
 	background: #192d47;
 	color: #d8e4f0;
 	}
@@ -358,15 +398,6 @@
 	margin: 0;
 	font-size: 1.3rem;
 	font-weight: 600;
-	flex: 1;
-	}
-
-	.badge {
-	font-size: 0.8rem;
-	background: rgba(255,255,255,.12);
-	padding: 0.2rem 0.6rem;
-	border-radius: 999px;
-	white-space: nowrap;
 	}
 
 	.back-btn {
@@ -377,6 +408,15 @@
 	white-space: nowrap;
 	}
 	.back-btn:hover { opacity: 1; }
+
+	.badge {
+	margin-left: auto;
+	font-size: 0.8rem;
+	background: rgba(255,255,255,.12);
+	padding: 0.2rem 0.6rem;
+	border-radius: 999px;
+	white-space: nowrap;
+	}
 
 	/* Info section */
 	.info-section {
@@ -472,22 +512,26 @@
 
 	/* Tab + Chart wrapper */
 	.tab-chart-wrap {
-	margin: 1.5rem 2rem 0;
+	margin: 1.5rem 2rem;
+	flex: 1;
+	min-height: 0;
 	display: flex;
 	gap: 1.25rem;
+	overflow: hidden;
 	}
+
 
 	/* Chart section */
 	.chart-section {
 	float: right;
-	flex: 45;
+	flex: 40;
+	min-height: 0;
 	background: #121d30;
 	border-radius: 12px;
 	box-shadow: 0 2px 10px rgba(0,0,0,.5);
 	padding: 1.25rem 1.5rem 1.5rem;
 	display: flex;
 	flex-direction: column;
-	min-height: 320px;
 	}
 
 	.chart-legend {
@@ -512,8 +556,6 @@
 	.chart-wrap {
 	flex: 1;
 	min-height: 0;
-	padding: 6px 4px 36px 56px;
-	box-sizing: border-box;
 	}
 
 	.chart-wrap svg {
@@ -547,6 +589,8 @@
 	/* Table */
 	.table-wrap {
 	flex: 55;
+	min-height: 0;
+	overflow: visible;
 	}
 
 	table {
@@ -558,6 +602,7 @@
 	overflow: hidden;
 	box-shadow: 0 2px 12px rgba(0,0,0,.5);
 	font-size: 0.825rem;
+	table-layout: fixed;
 	}
 
 	thead {
@@ -572,6 +617,9 @@
 	text-align: center;
 	font-weight: 600;
 	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	max-width: 0;
 	letter-spacing: 0.02em;
 	text-transform: uppercase;
 	}
@@ -590,6 +638,10 @@
 	padding: 0.6rem 0.8rem;
 	vertical-align: middle;
 	text-align: center;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	max-width: 0;
 	}
 
 	.number  { text-align: right; font-weight: 600; }
@@ -630,5 +682,20 @@
 	text-decoration: none;
 	}
 	.src-link:hover { text-decoration: underline; }
+
+	@media (max-width: 1400px) {
+		.tab-chart-wrap {
+			flex-direction: column;
+			overflow: auto;
+		}
+		.chart-section {
+			flex: none;
+			min-height: 260px;
+		}
+		.table-wrap {
+			flex: none;
+			overflow: visible;
+		}
+	}
 
 </style>

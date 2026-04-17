@@ -2,7 +2,6 @@
   import { onMount } from 'svelte';
   import { page } from '$app/stores';
   import { getReport, type Report } from '$lib/services/reports';
-  import { getCompany, type Company } from '$lib/services/companies';
   import { generateAuditDraft, getAuditRevisions, restoreAuditRevision, saveAudit, type Audit, type AuditRevision } from '$lib/services/audit';
   import { getUsersByCompany, type User } from '$lib/services/users';
   import AuditDiff from '$lib/components/AuditDiff.svelte';
@@ -24,7 +23,6 @@
   }
 
   let report       = $state<Report | null>(null);
-  let company      = $state<Company | null>(null);
   let revisions     = $state<AuditRevision[]>([]);
   let restoreIdx    = $state<number | null>(null);
   let restoreStatus = $state<'idle' | 'loading' | 'ok' | 'error'>('idle');
@@ -139,19 +137,19 @@
 
   $effect(() => {
     if (report) {
-      document.title = `${report.formType} ${report.year} Q${report.quarter} — Verity`;
+      document.title = `Verity - ${report.companyId.split('/')[1]} ${report.year} Q${report.quarter}`;
     }
   });
 </script>
 
 <main>
   <header>
-    <a href="javascript:history.back()" class="back-btn">← Back</a>
     {#if report}
-      <h1>{report.companyId.split('/')[1]} - {report.year} · Q{report.quarter}</h1>
+      <h1><a href="/" class="verity-brand">Verity:</a> {report.companyId.split('/')[1]} - {report.year} · Q{report.quarter}</h1>
     {:else}
-      <h1>Report</h1>
+      <h1><a href="/" class="verity-brand">Verity:</a> Report</h1>
     {/if}
+    <a href="/companies/{encodeURIComponent($page.params.cik)}" class="back-btn">← Back</a>
   </header>
 
   {#if status === 'loading'}
@@ -392,10 +390,6 @@
 	margin: 0;
 	font-size: 1.3rem;
 	font-weight: 600;
-	flex: 1;
-	display: flex;
-	align-items: center;
-	gap: 0.6rem;
 	}
 
 	.back-btn {

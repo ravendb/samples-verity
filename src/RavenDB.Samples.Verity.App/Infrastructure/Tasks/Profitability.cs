@@ -54,8 +54,8 @@ ai.genContext({ CompanyId: this.CompanyId, Id: id(this) })
 "Calculate the total revenue and total costs. Assess the asset value. " +
 "If a value is in millions or other units, write this abbreviation (e.g., 123 mil → save mil).\n\n" +
 "Return:\n" +
-"- Revenues: the total Revenues as a number\n" +
-"- Expenses: the total Expenses as a number\n" +
+"- Revenues: the total Revenues of a given quarter as a number\n" +
+"- Expenses: the total Expenses of a given quarter as a number\n" +
 "- Assets Value: the total value of Assets as a number\n" +
 "- Abbreviation: the unit abbreviation if applicable (e.g., mil for millions, k for thousands), or empty string\n" +
 "- Summary: a concise synthesis of the full report (keep under 2048 characters)";
@@ -84,7 +84,7 @@ for (var i = 1; i <= this.ChunkCount; i++) {
     del('Part/' + i + '/' + this.AccessionNumber);
 }";
 
-            MaxConcurrency = 4;
+            MaxConcurrency = 8;
         }
     }
 }
