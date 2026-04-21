@@ -1,0 +1,26 @@
+@page
+@model RavenDB.Samples.Verity.Identity.Pages.Account.LoginModel
+@{
+    ViewData["Title"] = "Sign in";
+}
+
+<h1>Sign in to Verity</h1>
+
+<form method="post">
+    <input type="hidden" asp-for="ReturnUrl" />
+
+    <label for="username">Username</label>
+    <input type="text" id="username" name="Username" autocomplete="username" required autofocus />
+
+    <label for="password">Password</label>
+    <input type="password" id="password" name="Password" autocomplete="current-password" required />
+
+    <button type="submit">Sign in</button>
+
+    @if (!string.IsNullOrEmpty(Model.ErrorMessage))
+    {
+        <div class="error">@Model.ErrorMessage</div>
+    }
+
+    <div class="muted">Dev credentials: <code>auditor</code> / <code>auditor</code></div>
+</form>

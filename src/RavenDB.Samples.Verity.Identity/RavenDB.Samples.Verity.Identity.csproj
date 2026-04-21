@@ -1,19 +1,22 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk.Web">
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <RollForward>LatestMajor</RollForward>
+    <UserSecretsId>verity-identity-3d0c5bb2-3f07-4cf4-a2cc-6db0eb0cf0fd</UserSecretsId>
   </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="Duende.IdentityServer" Version="7.2.4" />
-    <PackageReference Include="Microsoft.Extensions.Identity.Core" Version="10.0.0" />
+    <PackageReference Include="CommunityToolkit.Aspire.RavenDB.Client" Version="13.1.1" />
     <PackageReference Include="RavenDB.Client" Version="7.2.1" />
-    <PackageReference Include="RavenMigrations" Version="6.0.2" />
+    <PackageReference Include="Serilog.AspNetCore" Version="9.0.0" />
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\RavenDB.Samples.Verity.ServiceDefaults\RavenDB.Samples.Verity.ServiceDefaults.csproj" />
     <ProjectReference Include="..\RavenDB.Samples.Verity.Model\RavenDB.Samples.Verity.Model.csproj" />
   </ItemGroup>
 

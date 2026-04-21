@@ -2,9 +2,18 @@
 // for information about these interfaces
 declare global {
 	namespace App {
+		interface Locals {
+			user: {
+				sub:   string | null;
+				name:  string | null;
+				email: string | null;
+				sid:   string | null;
+			} | null;
+		}
+		interface PageData {
+			user: App.Locals['user'];
+		}
 		// interface Error {}
-		// interface Locals {}
-		// interface PageData {}
 		// interface PageState {}
 		// interface Platform {}
 	}

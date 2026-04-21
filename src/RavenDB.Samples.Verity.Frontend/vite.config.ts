@@ -11,8 +11,8 @@ export default defineConfig(({ mode }) => {
 			port: parseInt(env.VITE_PORT)
 		},
 		define: {
-			// Expose APP_HTTP as BASE_API_HTTP for client-side access
-			_BASE_API_HTTP_: JSON.stringify(process.env.APP_HTTP ?? '')
+			// All API calls go through BFF (same origin) — no external base URL needed
+			_BASE_API_HTTP_: JSON.stringify('')
 		},
 		test: {
 			expect: { requireAssertions: true },

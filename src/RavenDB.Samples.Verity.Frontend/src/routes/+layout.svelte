@@ -1,7 +1,7 @@
 <script lang="ts">
 	import favicon from '$lib/assets/favicon.svg';
 
-	let { children } = $props();
+	let { children, data } = $props();
 </script>
 
 <svelte:head>
@@ -9,6 +9,21 @@
 </svelte:head>
 
 <samples-ui-wrapper sourceLink="https://github.com/ravendb/samples-verity" theme="dark">
+	<div slot="header-end" style="display:flex;align-items:center;gap:1rem;padding-inline:1rem;">
+		{#if data.user?.name}
+			<span style="font-size:0.875rem;opacity:0.8">{data.user.name}</span>
+			<a
+				href={`/bff/logout?sid=${data.user.sid ?? ''}`}
+				style="font-size:0.875rem;color:inherit;text-decoration:underline"
+			>Sign out</a>
+		{:else}
+			<a
+				href={`/bff/login?returnUrl=${encodeURIComponent(typeof window !== 'undefined' ? window.location.pathname : '/')}`}
+				style="font-size:0.875rem;color:inherit;text-decoration:underline"
+			>Sign in</a>
+		{/if}
+	</div>
+
 	{@render children()}
 </samples-ui-wrapper>
 

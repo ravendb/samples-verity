@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Azure.Functions.Worker;
@@ -57,6 +58,7 @@ public class Api(
     }
 
     // GET /api/reports?cik=320193
+    [Authorize(Policy = "verity.read")]
     [Function(nameof(GetReports))]
     public async Task<IActionResult> GetReports(
         [HttpTrigger("get", Route = "reports")] HttpRequest req)
@@ -85,6 +87,7 @@ public class Api(
     }
 
     // GET /api/report?accession=0000320193-24-000123
+    [Authorize(Policy = "verity.read")]
     [Function(nameof(GetReport))]
     public async Task<IActionResult> GetReport(
         [HttpTrigger("get", Route = "report")] HttpRequest req)
@@ -103,6 +106,7 @@ public class Api(
     }
 
     // GET /api/companies?page=1&pageSize=20
+    [Authorize(Policy = "verity.read")]
     [Function(nameof(GetCompanies))]
     public async Task<IActionResult> GetCompanies(
         [HttpTrigger("get", Route = "companies")] HttpRequest req)
@@ -125,6 +129,7 @@ public class Api(
     }
 
     // GET /api/users?companyId=Companies/...
+    [Authorize(Policy = "verity.read")]
     [Function(nameof(GetUsers))]
     public async Task<IActionResult> GetUsers(
         [HttpTrigger("get", Route = "users")] HttpRequest req)
@@ -143,6 +148,7 @@ public class Api(
     }
 
     // GET /api/company?cik=320193
+    [Authorize(Policy = "verity.read")]
     [Function(nameof(GetCompany))]
     public async Task<IActionResult> GetCompany(
         [HttpTrigger("get", Route = "company")] HttpRequest req)
@@ -161,6 +167,7 @@ public class Api(
     }
 
     // POST /api/company?cik=320193
+    [Authorize(Policy = "verity.audit.write")]
     [Function(nameof(SaveCompany))]
     public async Task<IActionResult> SaveCompany(
         [HttpTrigger("post", Route = "company")] HttpRequest req)
@@ -179,6 +186,7 @@ public class Api(
     }
 
     // POST /api/fetch-10q?cik=320193&max=5
+    [Authorize(Policy = "verity.audit.write")]
     [Function(nameof(Fetch10Q))]
     public async Task<IActionResult> Fetch10Q(
         [HttpTrigger("post", Route = "fetch-10q")] HttpRequest req)
@@ -201,6 +209,7 @@ public class Api(
 
     // POST /api/audit  — creates an audit for a given report
     // Body (JSON): { reportId, auditorName, auditorSurname, auditorEmail, auditString }
+    [Authorize(Policy = "verity.audit.write")]
     [Function(nameof(CreateAudit))]
     public async Task<IActionResult> CreateAudit(
         [HttpTrigger("post", Route = "audit")] HttpRequest req)
@@ -244,9 +253,11 @@ public class Api(
             await session.StoreAsync(audit, req.HttpContext.RequestAborted);
         }
 
-        audit!.AuditorName    = body.AuditorName    ?? string.Empty;
-        audit.AuditorSurname  = body.AuditorSurname ?? string.Empty;
-        audit.AuditorEmail    = body.AuditorEmail   ?? string.Empty;
+        // Auditor identity comes from the authenticated principal, not the request body
+        var user = req.HttpContext.User;
+        audit!.AuditorName    = user.FindFirst("name")?.Value ?? body.AuditorName ?? string.Empty;
+        audit.AuditorSurname  = string.Empty;
+        audit.AuditorEmail    = user.FindFirst("email")?.Value ?? body.AuditorEmail ?? string.Empty;
         audit.AuditString     = body.AuditString    ?? string.Empty;
         audit.GeneratedByAi   = body.GeneratedByAi;
 
@@ -257,6 +268,7 @@ public class Api(
 
     // POST /api/audit/restore  — restores an audit document to a specific revision
     // Body (JSON): { auditId, changeVector }
+    [Authorize(Policy = "verity.audit.write")]
     [Function(nameof(RestoreAuditRevision))]
     public async Task<IActionResult> RestoreAuditRevision(
         [HttpTrigger("post", Route = "audit/restore")] HttpRequest req)
@@ -286,6 +298,7 @@ public class Api(
 
     // GET /api/audit/revisions?reportId=Reports/...
     // Note: revisions must be enabled for the Audits collection in RavenDB Studio.
+    [Authorize(Policy = "verity.read")]
     [Function(nameof(GetAuditRevisions))]
     public async Task<IActionResult> GetAuditRevisions(
         [HttpTrigger("get", Route = "audit/revisions")] HttpRequest req)
@@ -316,6 +329,7 @@ public class Api(
     }
 
     // GET /api/audit?reportId=Reports/...
+    [Authorize(Policy = "verity.read")]
     [Function(nameof(GetAudit))]
     public async Task<IActionResult> GetAudit(
         [HttpTrigger("get", Route = "audit")] HttpRequest req)

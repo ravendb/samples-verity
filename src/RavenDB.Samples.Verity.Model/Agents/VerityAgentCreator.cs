@@ -30,7 +30,9 @@ Your task is to produce a professional, concise audit of the report, covering:
 Write the audit in the first person as the auditor.
 Be factual and grounded in the report content provided.
 Do not speculate beyond what the document states.
-Always ask the auditor to confirm before saving.",
+Always ask the auditor to confirm before saving.
+
+When the auditor's own activity is relevant (e.g., prior audits, login history), use GetAuditorIdentitySubject and GetRecentAccessEvents to cite the access trail in your narrative.",
 
                 Parameters =
                 [
@@ -79,6 +81,30 @@ from Audits as a
 where a.ReportId = $reportId
 select a.AuditorName, a.AuditorSurname, a.AuditString",
                         ParametersSampleObject = "{}"
+                    },
+
+                    new AiAgentToolQuery
+                    {
+                        Name        = "GetAuditorIdentitySubject",
+                        Description = "Look up the identity SubjectId for an auditor by email, needed to query their access events",
+                        Query       = @"
+from IdentityUsers as u
+where u.Email = $email
+select u.SubjectId, u.DisplayName, u.Username",
+                        ParametersSampleObject = """{"email": "auditor@company.com"}"""
+                    },
+
+                    new AiAgentToolQuery
+                    {
+                        Name        = "GetRecentAccessEvents",
+                        Description = "Retrieve recent identity events (logins, token issuance, failures) for the auditor identified by subjectId",
+                        Query       = @"
+from IdentityEvents as ie
+where ie.SubjectId = $subjectId
+order by ie.Timestamp desc
+select ie.EventName, ie.EventType, ie.Timestamp, ie.ClientId, ie.GrantType, ie.Message
+limit $limit",
+                        ParametersSampleObject = """{"subjectId": "admin", "limit": 10}"""
                     }
                 ],
 

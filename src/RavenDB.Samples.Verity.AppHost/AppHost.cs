@@ -35,7 +35,19 @@ const string dbName = "verity";
 var db = ravenDbServer
     .AddDatabase(dbName);
 
-// Library App
+// Secrets — read from user-secrets when available, fall back to dev defaults
+var internalJwtKeyValue   = builder.Configuration["InternalJwtKey"]   ?? "dev-verity-internal-jwt-signing-key!!";
+var oidcClientSecretValue = builder.Configuration["OidcClientSecret"] ?? "dev-verity-oidc-secret";
+
+// Identity host
+var identity = builder
+    .AddProject<RavenDB_Samples_Verity_Identity>("identity")
+    .WithReference(db)
+    .WaitFor(db)
+    .WithHttpsEndpoint()
+    .WithExternalHttpEndpoints();
+
+// Functions App
 var functions = builder.AddAzureFunctionsProject<RavenDB_Samples_Verity_App>("app")
     .WithHostStorage(storage)
 
@@ -58,6 +70,13 @@ var functions = builder.AddAzureFunctionsProject<RavenDB_Samples_Verity_App>("ap
     .WithEnvironment("SAMPLES_VERITY_AZURE_REMOTE_FOLDER_NAME", builder.Configuration["AzureStorage:RemoteFolderName"]) // Optional
 
     .WithEnvironment("CommandKey", builder.Configuration["CommandKey"])
+
+    // Identity / JWT parameters for migration 004
+    .WithEnvironment("InternalJwtKey", internalJwtKeyValue)
+    .WithEnvironment("IdentityAdmin__Email", builder.Configuration["IdentityAdmin:Email"] ?? "admin@verity.local")
+    .WithEnvironment("IdentityAdmin__Password", builder.Configuration["IdentityAdmin:Password"] ?? "admin")
+    .WithEnvironment("OidcClientSecret", oidcClientSecretValue)
+
     .WithHttpCommand(
         path: "/api/migrate",
         displayName: "Migrate DB",
@@ -73,15 +92,31 @@ var functions = builder.AddAzureFunctionsProject<RavenDB_Samples_Verity_App>("ap
             IsHighlighted = true
         });
 
-// Frontend
+// Frontend (Vite dev server — no longer externally exposed; BFF is the public entry)
 var frontend = builder.AddNpmApp("Frontend", "../RavenDB.Samples.Verity.Frontend", "dev")
     .WithReference(functions)
     .WithEnvironment("BROWSER", "none")
-    .WithEnvironment("APP_HTTP", functions.GetEndpoint("http"))
     .WithHttpEndpoint(env: "VITE_PORT")
-    .WithExternalHttpEndpoints()
     .PublishAsDockerFile()
     .WaitFor(functions);
+
+// BFF — the single public entry point
+builder
+    .AddProject<RavenDB_Samples_Verity_Bff>("bff")
+    .WithReference(functions)
+    .WaitFor(functions)
+    .WithReference(identity)
+    .WaitFor(identity)
+    .WithEnvironment("Frontend__Url", frontend.GetEndpoint("http"))
+    .WithEnvironment("Api__Url", functions.GetEndpoint("http"))
+    .WithEnvironment("Authority", identity.GetEndpoint("https"))
+    .WithEnvironment("InternalJwtKey", internalJwtKeyValue)
+    .WithEnvironment("OidcClientSecret", oidcClientSecretValue)
+    // Override YARP cluster addresses from Aspire-injected URLs
+    .WithEnvironment("ReverseProxy__Clusters__api-cluster__Destinations__primary__Address", functions.GetEndpoint("http"))
+    .WithEnvironment("ReverseProxy__Clusters__frontend-cluster__Destinations__primary__Address", frontend.GetEndpoint("http"))
+    .WithHttpsEndpoint()
+    .WithExternalHttpEndpoints();
 
 builder.Build().Run();
 

@@ -5,4 +5,6 @@
   <Project Path="RavenDB.Samples.Verity.ServiceDefaults/RavenDB.Samples.Verity.ServiceDefaults.csproj" />
   <Project Path="RavenDB.Samples.Verity.Setup/RavenDB.Samples.Verity.Setup.csproj" Id="86b61c56-8650-4ae9-837e-6dd86e031144" />
   <Project Path="RavenDB.Samples.Verity.Model/RavenDB.Samples.Verity.Model.csproj" />
+  <Project Path="RavenDB.Samples.Verity.Identity/RavenDB.Samples.Verity.Identity.csproj" />
+  <Project Path="RavenDB.Samples.Verity.Bff/RavenDB.Samples.Verity.Bff.csproj" />
 </Solution>

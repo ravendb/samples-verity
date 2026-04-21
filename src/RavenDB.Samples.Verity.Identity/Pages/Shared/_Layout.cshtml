@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width,initial-scale=1"/>
+    <title>@ViewData["Title"] – Verity Identity</title>
+    <style>
+        body { font-family: system-ui, sans-serif; background: #0b0f17; color: #e7ecf3; margin: 0; display: flex; min-height: 100vh; align-items: center; justify-content: center; }
+        .card { background: #121826; border: 1px solid #1f2a3c; border-radius: 12px; padding: 2rem; min-width: 360px; box-shadow: 0 10px 30px rgba(0,0,0,.3); }
+        h1 { margin: 0 0 1rem; font-size: 1.25rem; }
+        label { display: block; font-size: .875rem; margin: .75rem 0 .25rem; color: #9fb0c9; }
+        input[type=text], input[type=password] { width: 100%; box-sizing: border-box; padding: .5rem .75rem; border-radius: 6px; border: 1px solid #2a3a55; background: #0b0f17; color: #e7ecf3; }
+        button { margin-top: 1rem; width: 100%; padding: .6rem; border-radius: 6px; border: none; background: #3b82f6; color: white; font-weight: 600; cursor: pointer; }
+        .muted { color: #7f8ea8; font-size: .8rem; margin-top: 1rem; }
+        .error { color: #f87171; font-size: .875rem; margin-top: .5rem; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        @RenderBody()
+    </div>
+</body>
+</html>

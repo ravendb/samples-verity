@@ -1,5 +1,6 @@
 /**
- * Minimal API helper
+ * Minimal API helper — all requests go through the BFF (same origin).
+ * Credentials (session cookie) and anti-forgery header are included automatically.
  */
 
 export interface PagedResult<T> {
@@ -9,20 +10,33 @@ export interface PagedResult<T> {
 	totalPages: number;
 }
 
-export const API_BASE_URL: string = _BASE_API_HTTP_ ?? '';
+// With BFF as the public entry, all API calls are same-origin.
+export const API_BASE_URL = '';
 
 export function apiUrl(path: string): string {
-	const base = API_BASE_URL.endsWith('/')
-		? API_BASE_URL.slice(0, -1)
-		: API_BASE_URL;
-
 	const route = path.startsWith('/') ? path : `/${path}`;
-
-	return `${base}${route}`;
+	return route;
 }
 
 export async function callApi<T>(path: string, options?: RequestInit): Promise<T> {
-	const res = await fetch(apiUrl(path), options);
+	const method = (options?.method ?? 'GET').toUpperCase();
+
+	const headers = new Headers(options?.headers);
+	// BFF anti-forgery token required for state-changing requests
+	if (method !== 'GET' && method !== 'HEAD') {
+		headers.set('X-CSRF', '1');
+	}
+
+	const res = await fetch(apiUrl(path), {
+		...options,
+		credentials: 'include',
+		headers
+	});
+
+	if (res.status === 401) {
+		window.location.href = `/bff/login?returnUrl=${encodeURIComponent(window.location.pathname)}`;
+		return new Promise(() => {}); // never resolves; page navigates away
+	}
 
 	if (!res.ok) {
 		const txt = await res.text().catch(() => '');
@@ -34,6 +48,5 @@ export async function callApi<T>(path: string, options?: RequestInit): Promise<T
 		return (await res.json()) as T;
 	}
 
-	// fallback to plain text for non-JSON responses
 	return (await res.text()) as unknown as T;
 }

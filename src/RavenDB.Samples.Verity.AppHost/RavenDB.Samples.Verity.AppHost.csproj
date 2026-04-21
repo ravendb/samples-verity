@@ -23,6 +23,8 @@
 
   <ItemGroup>
     <ProjectReference Include="..\RavenDB.Samples.Verity.App\RavenDB.Samples.Verity.App.csproj" />
+    <ProjectReference Include="..\RavenDB.Samples.Verity.Identity\RavenDB.Samples.Verity.Identity.csproj" />
+    <ProjectReference Include="..\RavenDB.Samples.Verity.Bff\RavenDB.Samples.Verity.Bff.csproj" />
   </ItemGroup>
 
 </Project>

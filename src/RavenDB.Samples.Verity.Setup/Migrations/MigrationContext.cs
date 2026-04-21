@@ -11,7 +11,11 @@ public class MigrationContext(
     string azureAccountKey,
     string azureRemoteFolderName,
     string azureStorageQueuesConnectionString,
-    string secEdgarUserAgent)
+    string secEdgarUserAgent,
+    string internalJwtKey,
+    string identityAdminEmail,
+    string identityAdminPassword,
+    string oidcClientSecret)
 {
     public string OpenAiApiKey { get; } = openAiApiKey;
     public string AzureStorageIdentity { get; } = azureStorageIdentity;
@@ -21,4 +25,10 @@ public class MigrationContext(
     public string AzureRemoteFolderName { get; } = azureRemoteFolderName;
     public string AzureStorageQueuesConnectionString { get; } = azureStorageQueuesConnectionString;
     public string SecEdgarUserAgent { get; } = secEdgarUserAgent;
+
+    // Identity parameters
+    public string InternalJwtKey { get; } = internalJwtKey;
+    public string IdentityAdminEmail { get; } = identityAdminEmail;
+    public string IdentityAdminPassword { get; } = identityAdminPassword;
+    public string OidcClientSecret { get; } = oidcClientSecret;
 }
