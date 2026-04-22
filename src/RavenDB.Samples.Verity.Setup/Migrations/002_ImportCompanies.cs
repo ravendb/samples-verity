@@ -1,6 +1,6 @@
-using Raven.Client.Documents.Subscriptions;
 using Raven.Migrations;
 using RavenDB.Samples.Verity.Model;
+using RavenDB.Samples.Verity.Model.Subscriptions;
 using System.Globalization;
 using System.Text.Json;
 
@@ -101,17 +101,7 @@ public sealed class ImportCompanies(MigrationContext context) : Migration
                 });
             }
 
-            DocumentStore.Subscriptions.CreateAsync(new SubscriptionCreationOptions<Report>
-            {
-                Name       = $"New-Reports-{name}",
-                Filter     = x => x.CompanyId == companyId,
-                Projection = x => new
-                {
-                    CompanyName     = x.CompanyId.Split('/').Last(),
-                    AccessionNumber = x.AccessionNumber,
-                    Filing          = $"{x.FormType} for period ended {x.ReportDate}"
-                }
-            }).GetAwaiter().GetResult();
+            NewReportsSubscription.Create(DocumentStore, name, companyId).GetAwaiter().GetResult();
         }
 
         session.SaveChanges();

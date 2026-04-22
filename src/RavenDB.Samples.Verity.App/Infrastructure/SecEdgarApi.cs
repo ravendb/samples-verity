@@ -152,6 +152,7 @@ public class SecEdgarApi(HttpClient http, IDocumentStore store, ILogger<SecEdgar
             yearsToSub = 1;
 
         session.Advanced.GetMetadataFor(report)["@archive-at"] = FiscalYearStart.AddYears(filing.ReportDate.Year - yearsToSub + 2);
+        session.Advanced.GetMetadataFor(report)["@expires"] = FiscalYearStart.AddYears(filing.ReportDate.Year - yearsToSub + 5);
 
         await session.SaveChangesAsync(ct);
         logger.LogInformation("Saved report {DocId}", docId);

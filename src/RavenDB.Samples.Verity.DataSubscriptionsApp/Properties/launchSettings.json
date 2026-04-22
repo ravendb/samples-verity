@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "DataSubscriptionsApp": {
+      "commandName": "Project",
+      "dotnetRunMessages": false
+    }
+  }
+}
