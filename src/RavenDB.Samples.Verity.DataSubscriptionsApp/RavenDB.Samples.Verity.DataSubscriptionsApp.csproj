@@ -17,10 +17,5 @@
     <ProjectReference Include="..\RavenDB.Samples.Verity.Model\RavenDB.Samples.Verity.Model.csproj" />
   </ItemGroup>
 
-  <ItemGroup>
-    <None Update="appsettings.json">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-  </ItemGroup>
 
 </Project>

@@ -332,6 +332,71 @@ public class Api(
 
         return new JsonResult(audit);
     }
+
+    // QueueTrigger: "auditRevisions" → save AuditNotification to RavenDB
+    [Function(nameof(OnAuditRevision))]
+    public async Task OnAuditRevision(
+        [QueueTrigger("auditRevisions", Connection = "SAMPLES_VERITY_AZURE_QUEUE_CONNECTION")] string messageBody)
+    {
+        var opts    = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+        var envelope = JsonSerializer.Deserialize<CloudEventEnvelope<AuditRevisionMessage>>(messageBody, opts);
+        var msg      = envelope?.Data;
+
+        if (msg is null) return;
+
+        using var notifSession = store.OpenAsyncSession();
+        var notification = new AuditNotification
+        {
+            AuditId       = msg.AuditId,
+            CompanyName   = msg.CompanyName,
+            ReportYear    = msg.ReportYear,
+            ReportQuarter = msg.ReportQuarter,
+            At            = DateTime.UtcNow
+        };
+
+        await notifSession.StoreAsync(notification);
+        notifSession.Advanced.GetMetadataFor(notification)["@expires"] =
+            DateTime.UtcNow.AddMinutes(5);
+        await notifSession.SaveChangesAsync();
+    }
+
+    // GET /api/audit/stream — SSE: push new AuditNotifications to client
+    [Function(nameof(StreamAuditEvents))]
+    public async Task StreamAuditEvents(
+        [HttpTrigger("get", Route = "audit/stream")] HttpRequest req)
+    {
+        var res = req.HttpContext.Response;
+        res.StatusCode                    = 200;
+        res.Headers["Content-Type"]       = "text/event-stream";
+        res.Headers["Cache-Control"]      = "no-cache";
+        res.Headers["X-Accel-Buffering"]  = "no";
+
+        var since = DateTime.UtcNow;
+        var ct    = req.HttpContext.RequestAborted;
+
+        while (!ct.IsCancellationRequested)
+        {
+            try { await Task.Delay(2000, ct); }
+            catch (OperationCanceledException) { break; }
+
+            using var pollSession = store.OpenAsyncSession();
+            var notifications = await pollSession.Query<AuditNotification>()
+                .Where(n => n.At > since)
+                .OrderBy(n => n.At)
+                .ToListAsync(ct);
+
+            foreach (var n in notifications)
+            {
+                var json = JsonSerializer.Serialize(n, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase });
+                logger.LogInformation($"{json}");
+                await res.WriteAsync($"data: {json}\n\n", ct);
+                since = n.At;
+            }
+
+            if (notifications.Count > 0)
+                await res.Body.FlushAsync(ct);
+        }
+    }
 }
 
 // ── DTOs ─────────────────────────────────────────────────────
@@ -348,3 +413,11 @@ public record PagedResult<T>(IList<T> Items, int Page, int PageSize, int TotalPa
 public record AuditRevisionDto(Audit Data, string ChangeVector, string LastModified);
 
 public record RestoreAuditRevisionRequest(string? AuditId, string? ChangeVector);
+
+public record AuditRevisionMessage(
+    string AuditId,
+    string CompanyName,
+    int    ReportYear,
+    int    ReportQuarter);
+
+public record CloudEventEnvelope<T>(T? Data);

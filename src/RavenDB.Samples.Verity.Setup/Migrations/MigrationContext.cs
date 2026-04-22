@@ -10,7 +10,8 @@ public class MigrationContext(
     string azureAccountName,
     string azureAccountKey,
     string azureRemoteFolderName,
-    string azureStorageQueuesConnectionString,
+    string azureQueueDefaultEndpointsProtocol,
+    string azureQueueEndpointSuffix,
     string secEdgarUserAgent)
 {
     public string OpenAiApiKey { get; } = openAiApiKey;
@@ -19,6 +20,7 @@ public class MigrationContext(
     public string AzureAccountName { get; } = azureAccountName;
     public string AzureAccountKey { get; } = azureAccountKey;
     public string AzureRemoteFolderName { get; } = azureRemoteFolderName;
-    public string AzureStorageQueuesConnectionString { get; } = azureStorageQueuesConnectionString;
+    public string AzureQueueDefaultEndpointsProtocol { get; } = azureQueueDefaultEndpointsProtocol;
+    public string AzureQueueEndpointSuffix            { get; } = azureQueueEndpointSuffix;
     public string SecEdgarUserAgent { get; } = secEdgarUserAgent;
 }

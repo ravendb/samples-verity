@@ -10,16 +10,17 @@
 
   function autoResize(node: HTMLTextAreaElement) {
     function resize() {
+      // Preserve scroll position — setting height='auto' triggers a reflow that causes the page to jump to top
+      const scrollY = window.scrollY;
       node.style.height = 'auto';
       node.style.height = node.scrollHeight + 'px';
+      window.scrollTo({ top: scrollY, behavior: 'instant' });
     }
     resize();
     node.addEventListener('input', resize);
     // Re-run when formNotes is set programmatically (e.g. after AI generation)
-    const observer = new MutationObserver(resize);
-    observer.observe(node, { attributes: true, attributeFilter: ['value'] });
     $effect(() => { formNotes; resize(); });
-    return { destroy() { node.removeEventListener('input', resize); observer.disconnect(); } };
+    return { destroy() { node.removeEventListener('input', resize); } };
   }
 
   let report       = $state<Report | null>(null);

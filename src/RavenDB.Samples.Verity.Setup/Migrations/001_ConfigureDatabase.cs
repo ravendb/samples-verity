@@ -7,6 +7,7 @@ using Raven.Client.Documents.Operations.Revisions;
 using Raven.Client.ServerWide.Operations;
 using Raven.Client.ServerWide.Operations.Configuration;
 using Raven.Migrations;
+using RavenDB.Samples.Verity.Model.Subscriptions;
 
 namespace RavenDB.Samples.Verity.Setup.Migrations;
 
@@ -81,6 +82,14 @@ public sealed class ConfigureDatabase(MigrationContext context) : Migration
             Disabled             = false,
             DeleteFrequencyInSec = 60
         }));
+
+        // 5) SUBSCRIPTIONS
+        try
+        {
+            CompaniesSubscription.Create(DocumentStore).GetAwaiter().GetResult();
+        }
+        catch (Exception) { }
+
     }
 
     public override void Down()

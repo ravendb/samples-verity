@@ -35,7 +35,7 @@ const string dbName = "verity";
 var db = ravenDbServer
     .AddDatabase(dbName);
 
-// Library App
+// Verity App
 var functions = builder.AddAzureFunctionsProject<RavenDB_Samples_Verity_App>("app")
     .WithHostStorage(storage)
 
@@ -57,6 +57,15 @@ var functions = builder.AddAzureFunctionsProject<RavenDB_Samples_Verity_App>("ap
     .WithEnvironment("SAMPLES_VERITY_AZURE_ACCOUNT_KEY", builder.Configuration["AzureStorage:AccountKey"])
     .WithEnvironment("SAMPLES_VERITY_AZURE_REMOTE_FOLDER_NAME", builder.Configuration["AzureStorage:RemoteFolderName"]) // Optional
 
+    // Azure Storage – Queue ETL + QueueTrigger
+    .WithEnvironment("SAMPLES_VERITY_AZURE_QUEUE_DEFAULT_ENDPOINTS_PROTOCOL", builder.Configuration["AzureStorage:QueueDefaultEndpointsProtocol"])
+    .WithEnvironment("SAMPLES_VERITY_AZURE_QUEUE_ENDPOINT_SUFFIX",            builder.Configuration["AzureStorage:QueueEndpointSuffix"])
+    .WithEnvironment("SAMPLES_VERITY_AZURE_QUEUE_CONNECTION",
+        $"DefaultEndpointsProtocol={builder.Configuration["AzureStorage:QueueDefaultEndpointsProtocol"]};" +
+        $"AccountName={builder.Configuration["AzureStorage:AccountName"]};" +
+        $"AccountKey={builder.Configuration["AzureStorage:AccountKey"]};" +
+        $"EndpointSuffix={builder.Configuration["AzureStorage:QueueEndpointSuffix"]}")
+
     .WithEnvironment("CommandKey", builder.Configuration["CommandKey"])
     .WithHttpCommand(
         path: "/api/migrate",
@@ -72,6 +81,13 @@ var functions = builder.AddAzureFunctionsProject<RavenDB_Samples_Verity_App>("ap
             IconName = "databaseArrowUp",
             IsHighlighted = true
         });
+
+// DataSubscriptionsApp — interactive Spectre.Console TUI, must run in its own console window
+// cmd /c start spawns a detached window so Aspire doesn't capture stdin/stdout
+builder.AddExecutable("subscriptions", "cmd", "../RavenDB.Samples.Verity.DataSubscriptionsApp",
+        "/c", "start", "Verity Subscriptions", "cmd", "/k", "dotnet run")
+    .WithReference(db)
+    .WaitFor(db);
 
 // Frontend
 var frontend = builder.AddNpmApp("Frontend", "../RavenDB.Samples.Verity.Frontend", "dev")

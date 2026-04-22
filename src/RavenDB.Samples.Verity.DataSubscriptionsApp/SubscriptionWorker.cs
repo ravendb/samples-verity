@@ -19,7 +19,7 @@ internal sealed class SubscriptionWorker(IDocumentStore store, IHostApplicationL
             try
             {
                 await RunAsync(stoppingToken);
-                AnsiConsole.Clear();
+                //AnsiConsole.Clear();
                 lifetime.StopApplication();
                 return;
             }
@@ -42,15 +42,17 @@ internal sealed class SubscriptionWorker(IDocumentStore store, IHostApplicationL
             using (var session = store.OpenAsyncSession())
             {
                 companies = await session.Query<Company>()
-                                         .OrderBy(c => c.Sic)
+                                         .OrderByDescending(c => c.Sic)
                                          .ThenBy(c => c.Name)
                                          .ToListAsync(stoppingToken);
             }
 
             if (companies.Count == 0)
             {
-                AnsiConsole.MarkupLine("[yellow]No companies in database. Exiting.[/]");
-                return;
+                await WaitForFirstCompanyAsync(stoppingToken);
+                AnsiConsole.Clear();
+                AnsiConsole.Write(new Rule("[bold green]Verity Data Subscriptions[/]").RuleStyle("green"));
+                continue;
             }
 
             var company = SelectCompany(companies);
@@ -60,8 +62,8 @@ internal sealed class SubscriptionWorker(IDocumentStore store, IHostApplicationL
             await EnsureSubscriptionExistsAsync(company, stoppingToken);
 
             AnsiConsole.Write(new Rule($"[bold cyan]{Markup.Escape(company.Name)}[/]").RuleStyle("cyan"));
-            AnsiConsole.MarkupLine($"[blue]Watching [bold]{Markup.Escape(company.Name)}[/] for new reports...[/]");
             AnsiConsole.MarkupLine("[dim]Press [[C]] to change company, [[Q]] to quit.[/]");
+            AnsiConsole.MarkupLine($"[blue]Watching [bold]{Markup.Escape(company.Name)}[/] for reports analyzed by AI...[/]");
 
             using var sessionCts = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken);
 
@@ -104,6 +106,39 @@ internal sealed class SubscriptionWorker(IDocumentStore store, IHostApplicationL
                 .AddChoices(choices));
 
         return selected == QuitSentinel ? null : selected;
+    }
+
+    private async Task WaitForFirstCompanyAsync(CancellationToken ct)
+    {
+        AnsiConsole.MarkupLine("[yellow]No companies in database. Waiting for data to be seeded...[/]");
+
+        var appeared = new TaskCompletionSource();
+        var worker = store.Subscriptions.GetSubscriptionWorker<Company>(
+            new SubscriptionWorkerOptions("Companies-Watch")
+            {
+                Strategy = SubscriptionOpeningStrategy.WaitForFree
+            });
+
+        try
+        {
+            var workerTask = worker.Run(batch =>
+            {
+                if (batch.Items.Count > 0)
+                    appeared.TrySetResult();
+            }, ct);
+
+            await Task.WhenAny(appeared.Task, workerTask);
+        }
+        catch (OperationCanceledException) { }
+        catch (IOException) when (ct.IsCancellationRequested) { }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Subscription worker failed waiting for companies");
+        }
+        finally
+        {
+            await worker.DisposeAsync();
+        }
     }
 
     private async Task EnsureSubscriptionExistsAsync(Company company, CancellationToken ct)
@@ -154,7 +189,7 @@ internal sealed class SubscriptionWorker(IDocumentStore store, IHostApplicationL
                 {
                     var n = item.Result;
                     AnsiConsole.MarkupLine(
-                        $"[bold cyan]{Markup.Escape(n.CompanyName)}[/] " +
+                        $"[cyan]Analyzed:[/] " +
                         $"[green]{Markup.Escape(n.Filing)}[/] " +
                         $"[dim]({Markup.Escape(n.AccessionNumber)})[/]");
                 }

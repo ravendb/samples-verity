@@ -25,7 +25,8 @@ builder.Services.AddSingleton(new MigrationContext(
     azureAccountName:                   Environment.GetEnvironmentVariable(Constants.EnvVars.AzureAccountName) ?? "",
     azureAccountKey:                    Environment.GetEnvironmentVariable(Constants.EnvVars.AzureAccountKey) ?? "",
     azureRemoteFolderName:              Environment.GetEnvironmentVariable(Constants.EnvVars.AzureRemoteFolderName) ?? "",
-    azureStorageQueuesConnectionString: Environment.GetEnvironmentVariable("BindingConnection") ?? "",
+    azureQueueDefaultEndpointsProtocol: Environment.GetEnvironmentVariable(Constants.EnvVars.AzureQueueDefaultEndpointsProtocol) ?? "",
+    azureQueueEndpointSuffix:           Environment.GetEnvironmentVariable(Constants.EnvVars.AzureQueueEndpointSuffix) ?? "",
     secEdgarUserAgent:                  Environment.GetEnvironmentVariable(Constants.EnvVars.SecEdgarUserAgent) ?? ""
 ));
 

@@ -1,7 +1,7 @@
 ﻿import { callApi } from '$lib/api';
-// callApi obsługuje options?: RequestInit i automatycznie parsuje JSON lub text
+// callApi accepts options?: RequestInit and automatically parses JSON or text
 
-// ── Typy ─────────────────────────────────────────────────────
+// ── Types ─────────────────────────────────────────────────────
 
 export interface Report {
 	id:                   string;
@@ -18,7 +18,7 @@ export interface Report {
 	profitabilitySummary?: string | null;
 }
 
-// ── Funkcje API ───────────────────────────────────────────────
+// ── API Functions ─────────────────────────────────────────────
 
 /**
  * Fetches the test string from the API.
@@ -28,7 +28,7 @@ export async function getTest(): Promise<string> {
 }
 
 /**
- * Pobiera listę wszystkich raportów z RavenDB.
+ * Fetches the list of all reports from RavenDB.
  */
 export async function getReports(): Promise<Report[]> {
 	return callApi<Report[]>('api/reports');
