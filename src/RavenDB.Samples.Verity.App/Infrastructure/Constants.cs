@@ -24,6 +24,14 @@ namespace RavenDB.Samples.Verity.App.Infrastructure
             public const string AzureQueueDefaultEndpointsProtocol = "SAMPLES_VERITY_AZURE_QUEUE_DEFAULT_ENDPOINTS_PROTOCOL";
             public const string AzureQueueEndpointSuffix            = "SAMPLES_VERITY_AZURE_QUEUE_ENDPOINT_SUFFIX";
 
+            public const string DbName = "SAMPLES_VERITY_DB_NAME";
+
+            // Hub/Sink Replication
+            public const string SinkServerUrl        = "SAMPLES_VERITY_SINK_SERVER_URL";
+            public const string SinkName             = "SAMPLES_VERITY_SINK_DATABASE_NAME";
+            public const string HubServerInternalUrl = "SAMPLES_VERITY_HUB_SERVER_INTERNAL_URL";
+
+
             // Migration
             public const string CommandKey = "CommandKey";
         }

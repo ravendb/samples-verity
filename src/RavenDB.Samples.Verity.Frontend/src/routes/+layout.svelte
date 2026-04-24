@@ -19,7 +19,7 @@
 		fading:       boolean;
 	}
 
-	const VISIBLE_MS = 4600;
+	const VISIBLE_MS = 5000;
 	const FADE_MS    = 400;
 
 	let toasts = $state<ToastEntry[]>([]);
@@ -60,16 +60,32 @@
 		startTimer(id);
 	}
 
-	onMount(() => {
+	let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+
+	function connectSSE() {
+		es?.close();
 		es = new EventSource(apiUrl('/api/audit/stream'));
+
 		es.onmessage = (e) => {
 			const notification: AuditNotification = JSON.parse(e.data);
 			toasts = [...toasts, { notification, fading: false }];
 			startTimer(notification.id);
 		};
+
+		es.onerror = () => {
+			es?.close();
+			es = null;
+			if (reconnectTimer) clearTimeout(reconnectTimer);
+			reconnectTimer = setTimeout(connectSSE, 3000);
+		};
+	}
+
+	onMount(() => {
+		connectSSE();
 	});
 
 	onDestroy(() => {
+		if (reconnectTimer) clearTimeout(reconnectTimer);
 		es?.close();
 		timers.forEach(clearTimeout);
 	});

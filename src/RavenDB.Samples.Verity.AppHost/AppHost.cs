@@ -22,6 +22,7 @@ if (!string.IsNullOrEmpty(license))
 
 settings.Port = 9534;
 settings.TcpPort = 41350;
+var hubInternalUrl = $"http://host.docker.internal:{settings.Port!.Value}";
 
 var ravenDbServer = builder
     .AddRavenDB("RavenDB", settings)
@@ -30,10 +31,15 @@ var ravenDbServer = builder
     .WithReference(queues)
     .WaitFor(queues);
 
-const string dbName = "verity";
+var dbName   = builder.Configuration["DatabaseName"]!;
+var sinkName = $"{dbName}-sink";
 
 var db = ravenDbServer
     .AddDatabase(dbName);
+
+var sink = ravenDbServer
+    .AddDatabase(sinkName);
+
 
 // Verity App
 var functions = builder.AddAzureFunctionsProject<RavenDB_Samples_Verity_App>("app")
@@ -46,6 +52,10 @@ var functions = builder.AddAzureFunctionsProject<RavenDB_Samples_Verity_App>("ap
 
     .WithReference(db)
     .WaitFor(db)
+    .WithReference(sink)
+    .WaitFor(sink)
+
+    .WithEnvironment("SAMPLES_VERITY_DB_NAME", dbName)
 
     .WithEnvironment("SAMPLES_VERITY_SEC_EDGAR_USER_AGENT", builder.Configuration["SecEdgar:UserAgent"])
     .WithEnvironment("SAMPLES_VERITY_OPENAI_API_KEY", builder.Configuration["OpenAI:ApiKey"])
@@ -65,6 +75,11 @@ var functions = builder.AddAzureFunctionsProject<RavenDB_Samples_Verity_App>("ap
         $"AccountName={builder.Configuration["AzureStorage:AccountName"]};" +
         $"AccountKey={builder.Configuration["AzureStorage:AccountKey"]};" +
         $"EndpointSuffix={builder.Configuration["AzureStorage:QueueEndpointSuffix"]}")
+
+    // Hub/Sink Replication
+    .WithEnvironment("SAMPLES_VERITY_SINK_SERVER_URL",         ravenDbServer.GetEndpoint("http"))
+    .WithEnvironment("SAMPLES_VERITY_SINK_DATABASE_NAME",      sinkName)
+    .WithEnvironment("SAMPLES_VERITY_HUB_SERVER_INTERNAL_URL", hubInternalUrl)
 
     .WithEnvironment("CommandKey", builder.Configuration["CommandKey"])
     .WithHttpCommand(
@@ -86,8 +101,8 @@ var functions = builder.AddAzureFunctionsProject<RavenDB_Samples_Verity_App>("ap
 // cmd /c start spawns a detached window so Aspire doesn't capture stdin/stdout
 builder.AddExecutable("subscriptions", "cmd", "../RavenDB.Samples.Verity.DataSubscriptionsApp",
         "/c", "start", "Verity Subscriptions", "cmd", "/k", "dotnet run")
-    .WithReference(db)
-    .WaitFor(db);
+    .WithReference(sink)
+    .WaitFor(sink);
 
 // Frontend
 var frontend = builder.AddNpmApp("Frontend", "../RavenDB.Samples.Verity.Frontend", "dev")

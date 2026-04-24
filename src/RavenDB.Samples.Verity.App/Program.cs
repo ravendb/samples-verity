@@ -11,7 +11,8 @@ var builder = FunctionsApplication.CreateBuilder(args);
 
 builder.AddDefaultHealthChecks();
 
-builder.AddRavenDBClient("verity", settings =>
+var dbName = Environment.GetEnvironmentVariable(Constants.EnvVars.DbName) ?? "verity";
+builder.AddRavenDBClient(dbName, settings =>
 {
     settings.CreateDatabase = true;
 });
@@ -27,7 +28,10 @@ builder.Services.AddSingleton(new MigrationContext(
     azureRemoteFolderName:              Environment.GetEnvironmentVariable(Constants.EnvVars.AzureRemoteFolderName) ?? "",
     azureQueueDefaultEndpointsProtocol: Environment.GetEnvironmentVariable(Constants.EnvVars.AzureQueueDefaultEndpointsProtocol) ?? "",
     azureQueueEndpointSuffix:           Environment.GetEnvironmentVariable(Constants.EnvVars.AzureQueueEndpointSuffix) ?? "",
-    secEdgarUserAgent:                  Environment.GetEnvironmentVariable(Constants.EnvVars.SecEdgarUserAgent) ?? ""
+    secEdgarUserAgent:                  Environment.GetEnvironmentVariable(Constants.EnvVars.SecEdgarUserAgent) ?? "",
+    sinkServerUrl:                      Environment.GetEnvironmentVariable(Constants.EnvVars.SinkServerUrl) ?? "",
+    sinkName:                           Environment.GetEnvironmentVariable(Constants.EnvVars.SinkName) ?? "",
+    hubServerInternalUrl:               Environment.GetEnvironmentVariable(Constants.EnvVars.HubServerInternalUrl) ?? ""
 ));
 
 builder.Services.AddRavenDbMigrations(migrations =>

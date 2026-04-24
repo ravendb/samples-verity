@@ -6,12 +6,14 @@ using Microsoft.Extensions.Logging;
 using Raven.Migrations;
 using Raven.Client.Documents;
 using Raven.Client.Documents.AI;
+using Raven.Client.Documents.Changes;
 using Raven.Client.Documents.Linq;
 using Raven.Client.Documents.Operations.AI;
 using Raven.Client.Documents.Operations.AI.Agents;
 using Raven.Client.Documents.Operations.ConnectionStrings;
 using Raven.Client.Documents.Operations.Revisions;
 using Raven.Client.Documents.Session;
+using System.Reactive.Linq;
 using RavenDB.Samples.Verity.App.Infrastructure;
 using RavenDB.Samples.Verity.Model;
 using System.Globalization;
@@ -366,36 +368,40 @@ public class Api(
         [HttpTrigger("get", Route = "audit/stream")] HttpRequest req)
     {
         var res = req.HttpContext.Response;
-        res.StatusCode                    = 200;
-        res.Headers["Content-Type"]       = "text/event-stream";
-        res.Headers["Cache-Control"]      = "no-cache";
-        res.Headers["X-Accel-Buffering"]  = "no";
+        res.StatusCode                   = 200;
+        res.Headers["Content-Type"]      = "text/event-stream";
+        res.Headers["Cache-Control"]     = "no-cache";
+        res.Headers["X-Accel-Buffering"] = "no";
 
-        var since = DateTime.UtcNow;
-        var ct    = req.HttpContext.RequestAborted;
+        var ct          = req.HttpContext.RequestAborted;
+        var jsonOptions = new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
 
-        while (!ct.IsCancellationRequested)
-        {
-            try { await Task.Delay(2000, ct); }
-            catch (OperationCanceledException) { break; }
-
-            using var pollSession = store.OpenAsyncSession();
-            var notifications = await pollSession.Query<AuditNotification>()
-                .Where(n => n.At > since)
-                .OrderBy(n => n.At)
-                .ToListAsync(ct);
-
-            foreach (var n in notifications)
+        using var subscription = store.Changes()
+            .ForDocumentsInCollection<AuditNotification>()
+            .Subscribe(change =>
             {
-                var json = JsonSerializer.Serialize(n, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase });
-                logger.LogInformation($"{json}");
-                await res.WriteAsync($"data: {json}\n\n", ct);
-                since = n.At;
-            }
+                if (change.Type != DocumentChangeTypes.Put || ct.IsCancellationRequested) return;
+                _ = Task.Run(async () =>
+                {
+                    using var s = store.OpenAsyncSession();
+                    var n = await s.LoadAsync<AuditNotification>(change.Id, ct);
+                    if (n is null) return;
+                    var json = JsonSerializer.Serialize(n, jsonOptions);
+                    await res.WriteAsync($"data: {json}\n\n", ct);
+                    await res.Body.FlushAsync(ct);
+                }, ct);
+            });
 
-            if (notifications.Count > 0)
+        using var timer = new PeriodicTimer(TimeSpan.FromSeconds(25));
+        try
+        {
+            while (await timer.WaitForNextTickAsync(ct))
+            {
+                await res.WriteAsync(": keepalive\n\n", ct);
                 await res.Body.FlushAsync(ct);
+            }
         }
+        catch (OperationCanceledException) { }
     }
 }
 

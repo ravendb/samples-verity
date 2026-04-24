@@ -23,9 +23,10 @@ public sealed class ConfigureAi(MigrationContext context) : Migration
         }));
 
         // AI CONNECTION STRING
+        const string connectionName = "Verity AI Model";
         DocumentStore.Maintenance.Send(new PutConnectionStringOperation<AiConnectionString>(new AiConnectionString
         {
-            Name           = "Verity AI Model",
+            Name           = connectionName,
             ModelType      = AiModelType.Chat,
             OpenAiSettings = new OpenAiSettings
             {
@@ -36,11 +37,11 @@ public sealed class ConfigureAi(MigrationContext context) : Migration
         }));
 
         // AI AGENT
-        VerityAgentCreator.Create(DocumentStore).GetAwaiter().GetResult();
+        VerityAgentCreator.Create(DocumentStore, connectionName).GetAwaiter().GetResult();
 
         // GEN AI TASKS
-        DocumentStore.Maintenance.Send(new AddGenAiOperation(new ChunkAnalysisTask()));
-        DocumentStore.Maintenance.Send(new AddGenAiOperation(new ProfitabilityTask()));
+        DocumentStore.Maintenance.Send(new AddGenAiOperation(new ChunkAnalysisTask(connectionName)));
+        DocumentStore.Maintenance.Send(new AddGenAiOperation(new ProfitabilityTask(connectionName)));
     }
 
     public override void Down()

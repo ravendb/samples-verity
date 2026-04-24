@@ -9,7 +9,7 @@ AnsiConsole.Profile.Capabilities.Unicode = true;
 
 var builder = Host.CreateApplicationBuilder(args);
 
-builder.AddRavenDBClient("verity");
+builder.AddRavenDBClient("verity-sink");
 builder.Services.AddHostedService<SubscriptionWorker>();
 builder.Logging.SetMinimumLevel(LogLevel.None);
 

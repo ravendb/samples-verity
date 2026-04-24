@@ -55,11 +55,14 @@ internal sealed class SubscriptionWorker(IDocumentStore store, IHostApplicationL
                 continue;
             }
 
+            foreach (var c in companies)
+            {
+                await EnsureSubscriptionExistsAsync(c, stoppingToken);
+            }
+            
             var company = SelectCompany(companies);
             if (company is null)
                 break;
-
-            await EnsureSubscriptionExistsAsync(company, stoppingToken);
 
             AnsiConsole.Write(new Rule($"[bold cyan]{Markup.Escape(company.Name)}[/]").RuleStyle("cyan"));
             AnsiConsole.MarkupLine("[dim]Press [[C]] to change company, [[Q]] to quit.[/]");
@@ -146,7 +149,6 @@ internal sealed class SubscriptionWorker(IDocumentStore store, IHostApplicationL
         try
         {
             await NewReportsSubscription.Create(store, company.Name, company.Id);
-            AnsiConsole.MarkupLine($"[dim]Created subscription for {Markup.Escape(company.Name)}[/]");
         }
         catch (Exception)
         {

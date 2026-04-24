@@ -5,11 +5,11 @@ namespace RavenDB.Samples.Verity.Model.Tasks;
 
 public class ProfitabilityTask : GenAiConfiguration
 {
-    public ProfitabilityTask()
+    public ProfitabilityTask(string connectionName)
     {
         Name                 = "ProfitabilityAnalysis";
         Identifier           = "profitability-analysis";
-        ConnectionStringName = "Verity AI Model";
+        ConnectionStringName = connectionName;
         Disabled             = false;
         Collection           = "Reports";
 

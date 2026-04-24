@@ -5,11 +5,11 @@ namespace RavenDB.Samples.Verity.Model.Tasks;
 
 public class ChunkAnalysisTask : GenAiConfiguration
 {
-    public ChunkAnalysisTask()
+    public ChunkAnalysisTask(string connectionName)
     {
         Name                 = "ChunkAnalysis";
         Identifier           = "chunk-analysis";
-        ConnectionStringName = "Verity AI Model";
+        ConnectionStringName = connectionName;
         Disabled             = false;
         Collection           = "ReportParts";
 

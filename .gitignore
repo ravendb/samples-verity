@@ -3,6 +3,9 @@
 ##
 ## Get latest from https://github.com/github/gitignore/blob/main/VisualStudio.gitignore
 
+# Dev TLS certificates — never commit private keys
+certs/
+
 # User-specific files
 *.rsuser
 *.suo
