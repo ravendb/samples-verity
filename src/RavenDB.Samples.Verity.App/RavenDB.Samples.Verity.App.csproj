@@ -18,7 +18,7 @@
     <PackageReference Include="Microsoft.Azure.Functions.Worker.Extensions.Storage.Queues" Version="5.5.4" />
     <PackageReference Include="Microsoft.Azure.Functions.Worker.Sdk" Version="2.0.7" />
     <PackageReference Include="HtmlAgilityPack" Version="1.12.4" />
-    <PackageReference Include="RavenDB.Client" Version="7.2.1" />
+    <PackageReference Include="RavenDB.Client" Version="7.2.2" />
     <PackageReference Include="System.Reactive" Version="6.1.0" />
     <PackageReference Include="RavenMigrations" Version="6.0.2" />
   </ItemGroup>
