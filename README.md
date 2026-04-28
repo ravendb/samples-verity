@@ -41,16 +41,23 @@ The following technogies were used to build this application:
 1. Node.js 22
 1. Svelte
 
-## TBD - Run locally
-
-If you want to run the application locally, please follow the steps:
+## Local setup
+A few steps are required to run the application locally.
 
 1. Check out the GIT repository
 1. Install prerequisites:
    1. [.NET 10.x](https://dotnet.microsoft.com/en-us/download/dotnet/10.0)
    1. [Node.js 22.x](https://nodejs.org/en/download)
-1. Get yourself Raven Licensce, OpenAI API key and Azure storage connection string
-1. Edit app settings in App Host folder with above and your nick and email in fields CommandKey and UserAgent, user agent field should look like "UserAgent": "John john@mail.web"
+1. In next steps we will be editing appsettings.json found in (Repository folder)/src/RavenDB.Samples.Verity.App/
+   1. CommandKey: your email
+   1. UserAgent: your nick and email, eg. "UserAgent": "John john@mail.web"
+   1. ApiKey: your OpenAI api key
+   1. AzureStorage: your Azure storage connection string
+   1. RacenDB License: your license which you can get here [RavenDB License](https://ravendb.net/license/request/dev)
+
+## Yor own RavenDB
+
+If you want to try RavenDB yourself there is easy way to do this found [here](https://ravendb.net/download)
 
 ## Community & Support
 
