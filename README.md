@@ -59,6 +59,12 @@ A few steps are required to run the application locally.
 
 If you want to try RavenDB yourself there is easy way to do this found [here](https://ravendb.net/download)
 
+## Rmearks
+
+When adding a company, the user should select U.S. based companies, as foreign companies do not have 10-K and 10-Q reports, which the application focuses on.
+
+The sink does not replicate subscriptions from the hub. Subscriptions are created only when the subscription display application (running on the sink) is started, at which point they are initialized for all existing companies. When a new company is added on the hub, a subscription is created immediately. On the sink, however, the subscription is only created after the application refreshes the company list. Until this happens, there is no active subscription for that company on the sink, which creates a potential gap where change notifications may be missed.
+
 ## Community & Support
 
 If you spot a bug, have an idea or a question, please let us know by rasing an issue or creating a pull request. 
