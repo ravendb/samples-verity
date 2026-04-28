@@ -5,6 +5,7 @@
   import { generateAuditDraft, getAuditRevisions, restoreAuditRevision, saveAudit, type Audit, type AuditRevision } from '$lib/services/audit';
   import { getUsersByCompany, type User } from '$lib/services/users';
   import AuditDiff from '$lib/components/AuditDiff.svelte';
+  import { lastUpdatedReportId } from '$lib/stores/liveUpdates';
 
   const accession = decodeURIComponent($page.params.accession);
 
@@ -139,6 +140,13 @@
   $effect(() => {
     if (report) {
       document.title = `Verity - ${report.companyId.split('/')[1]} ${report.year} Q${report.quarter}`;
+    }
+  });
+
+  $effect(() => {
+    const updatedId = $lastUpdatedReportId;
+    if (updatedId && report && updatedId === report.id) {
+      getReport(accession).then(r => { report = r; });
     }
   });
 </script>

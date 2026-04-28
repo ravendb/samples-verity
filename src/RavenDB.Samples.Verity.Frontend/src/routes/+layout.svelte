@@ -2,6 +2,7 @@
 	import favicon from '$lib/assets/favicon.svg';
 	import { apiUrl } from '$lib/api';
 	import { onMount, onDestroy } from 'svelte';
+	import { lastUpdatedReportId } from '$lib/stores/liveUpdates';
 
 	let { children } = $props();
 
@@ -23,7 +24,8 @@
 	const FADE_MS    = 400;
 
 	let toasts = $state<ToastEntry[]>([]);
-	let es: EventSource | null = null;
+	let auditEs:  EventSource | null = null;
+	let reportEs: EventSource | null = null;
 
 	const timers = new Map<string, ReturnType<typeof setTimeout>>();
 
@@ -63,20 +65,33 @@
 	let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
 
 	function connectSSE() {
-		es?.close();
-		es = new EventSource(apiUrl('/api/audit/stream'));
+		auditEs?.close();
+		auditEs = new EventSource(apiUrl('/api/audit/stream'));
 
-		es.onmessage = (e) => {
+		auditEs.onmessage = (e) => {
 			const notification: AuditNotification = JSON.parse(e.data);
 			toasts = [...toasts, { notification, fading: false }];
 			startTimer(notification.id);
 		};
 
-		es.onerror = () => {
-			es?.close();
-			es = null;
+		auditEs.onerror = () => {
+			auditEs?.close();
+			auditEs = null;
 			if (reconnectTimer) clearTimeout(reconnectTimer);
 			reconnectTimer = setTimeout(connectSSE, 3000);
+		};
+
+		reportEs?.close();
+		reportEs = new EventSource(apiUrl('/api/report/stream'));
+
+		reportEs.onmessage = (e) => {
+			const reportId: string = JSON.parse(e.data);
+			lastUpdatedReportId.set(reportId);
+		};
+
+		reportEs.onerror = () => {
+			reportEs?.close();
+			reportEs = null;
 		};
 	}
 
@@ -86,7 +101,8 @@
 
 	onDestroy(() => {
 		if (reconnectTimer) clearTimeout(reconnectTimer);
-		es?.close();
+		auditEs?.close();
+		reportEs?.close();
 		timers.forEach(clearTimeout);
 	});
 </script>

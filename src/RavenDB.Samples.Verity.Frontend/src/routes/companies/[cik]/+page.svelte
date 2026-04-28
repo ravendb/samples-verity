@@ -4,6 +4,7 @@
   import { goto } from '$app/navigation';
   import { getReportsByCik, fetch10Q, type Report } from '$lib/services/reports';
   import { getCompany, type Company } from '$lib/services/companies';
+  import { lastUpdatedReportId } from '$lib/stores/liveUpdates';
 
   const cik = decodeURIComponent($page.params.cik);
 
@@ -20,6 +21,13 @@
 
   $effect(() => {
     document.title = company ? `Verity - ${company.name}` : 'Verity';
+  });
+
+  $effect(() => {
+    const updatedId = $lastUpdatedReportId;
+    if (updatedId && reports.some(r => r.id === updatedId)) {
+      getReportsByCik(cik).then(r => { reports = r; });
+    }
   });
 
   async function loadData() {

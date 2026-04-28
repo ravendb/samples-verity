@@ -3,7 +3,9 @@ using Raven.Client.Documents;
 using Raven.Client.Documents.Operations.Attachments;
 using Raven.Client.Documents.Subscriptions;
 using RavenDB.Samples.Verity.Model;
+using RavenDB.Samples.Verity.Model.Subscriptions;
 using Sparrow;
+using System.ComponentModel.Design;
 using System.Globalization;
 using System.Text;
 using System.Text.Json;
@@ -219,6 +221,18 @@ public class SecEdgarApi(HttpClient http, IDocumentStore store, ILogger<SecEdgar
 
     // ── 4. Fetching and saving company data ──────────────────────────────────
 
+    private static readonly string[] FirstNames =
+    [
+        "James", "Mary", "Robert", "Patricia", "Michael",
+            "Jennifer", "William", "Linda", "David", "Barbara"
+    ];
+
+    private static readonly string[] LastNames =
+    [
+        "Smith", "Johnson", "Williams", "Brown", "Jones",
+        "Garcia", "Miller", "Davis", "Wilson", "Martinez"
+    ];
+
     public async Task<Company> FetchAndSaveCompanyAsync(string paddedCik, CancellationToken ct = default)
     {
         var url = $"{DataBase}/submissions/CIK{paddedCik}.json";
@@ -248,24 +262,32 @@ public class SecEdgarApi(HttpClient http, IDocumentStore store, ILogger<SecEdgar
             FiscalYearStart = fiscalYearStart,
         };
 
-        await store.Subscriptions.CreateAsync<Report>(new SubscriptionCreationOptions<Report>()
-        {
-            Name = $"New-Reports-{company.Cik}",
-
-            // The subscription criteria:
-            Filter = x => x.CompanyId == company.Id,
-
-            // The object properties that will be sent for each matching document:
-            Projection = x => new
-            {
-                CompanyName = x.CompanyId.Split('/').Last(),
-                AccessionNumber = x.AccessionNumber,
-                Filing = $"{x.FormType} for period ended {x.ReportDate}"
-            }
-        }, token: ct);
+        NewReportsSubscription.Create(store, companyName, company.Id).GetAwaiter().GetResult();
 
         using var session = store.OpenAsyncSession();
         await session.StoreAsync(company, company.Id, ct);
+
+        Random Rng = new(21);
+        var usedPairs = new HashSet<string>();
+        for (var i = 0; i < 2; i++)
+        {
+            string firstName, lastName;
+            do
+            {
+                firstName = FirstNames[Rng.Next(FirstNames.Length)];
+                lastName = LastNames[Rng.Next(LastNames.Length)];
+            } while (!usedPairs.Add($"{firstName} {lastName}"));
+
+            var domain = company.Name.Replace(" ", "").Replace(",", "").Replace(".", "").ToLowerInvariant();
+            await session.StoreAsync(new User
+            {
+                Id = $"Users/{company.Name}/{firstName} {lastName}",
+                CompanyId = company.Id,
+                Name = firstName,
+                Surname = lastName,
+                Email = $"{firstName.ToLower()}{lastName.ToLower()}@{domain}.com"
+            });
+        }
         await session.SaveChangesAsync(ct);
 
         logger.LogInformation("Saved company {Name} (CIK: {Cik})", company.Name, company.Cik);

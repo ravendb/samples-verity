@@ -123,7 +123,8 @@
   <div class="overlay" onclick={() => { if (addStatus !== 'loading') showModal = false; }}>
     <div class="modal" onclick={(e) => e.stopPropagation()}>
       <h2>Add Company</h2>
-      <p class="modal-hint">Enter the SEC EDGAR CIK number to fetch and save company data.</p>
+      <p class="modal-hint">Enter the <a class="modal-link" href="https://www.sec.gov/search-filings/cik-lookup" target="_blank" rel="noopener noreferrer">SEC EDGAR CIK</a> number to fetch and save company data.</p>
+		<p class="modal-disclouse">(For best results enter companies from USA)</p>
 
       <form onsubmit={(e) => { e.preventDefault(); handleAddCompany(); }}>
         <label for="cik-input">Company CIK</label>
@@ -336,6 +337,12 @@
 	color: #7a96b2;
 	}
 
+	.modal-disclouse {
+	margin: 0;
+	font-size: 0.7rem;
+	color: #64819e;
+	}
+
 	form {
 	display: flex;
 	flex-direction: column;
@@ -348,6 +355,11 @@
 	color: #8aa4be;
 	text-transform: uppercase;
 	letter-spacing: 0.04em;
+	}
+
+	.modal-link {
+	color: #65d6d1;
+	text-decoration: none;
 	}
 
 	input {

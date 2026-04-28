@@ -403,6 +403,48 @@ public class Api(
         }
         catch (OperationCanceledException) { }
     }
+
+    // GET /api/report/stream — SSE: push new AuditNotifications to client
+    [Function(nameof(StreamReportEvents))]
+    public async Task StreamReportEvents(
+        [HttpTrigger("get", Route = "report/stream")] HttpRequest req)
+    {
+        var res = req.HttpContext.Response;
+        res.StatusCode = 200;
+        res.Headers["Content-Type"] = "text/event-stream";
+        res.Headers["Cache-Control"] = "no-cache";
+        res.Headers["X-Accel-Buffering"] = "no";
+
+        var ct = req.HttpContext.RequestAborted;
+        var jsonOptions = new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
+
+        using var subscription = store.Changes()
+            .ForDocumentsInCollection<Report>()
+            .Subscribe(change =>
+            {
+                if (change.Type != DocumentChangeTypes.Put || ct.IsCancellationRequested) return;
+                _ = Task.Run(async () =>
+                {
+                    using var s = store.OpenAsyncSession();
+                    var n = await s.LoadAsync<Report>(change.Id, ct);
+                    if (n is null) return;
+                    var json = JsonSerializer.Serialize(n.Id, jsonOptions);
+                    await res.WriteAsync($"data: {json}\n\n", ct);
+                    await res.Body.FlushAsync(ct);
+                }, ct);
+            });
+
+        using var timer = new PeriodicTimer(TimeSpan.FromSeconds(25));
+        try
+        {
+            while (await timer.WaitForNextTickAsync(ct))
+            {
+                await res.WriteAsync(": keepalive\n\n", ct);
+                await res.Body.FlushAsync(ct);
+            }
+        }
+        catch (OperationCanceledException) { }
+    }
 }
 
 // ── DTOs ─────────────────────────────────────────────────────
