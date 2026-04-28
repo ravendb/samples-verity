@@ -1,5 +1,5 @@
 <script lang="ts">
-	import favicon from '$lib/assets/favicon.svg';
+	import favicon from '$lib/assets/favicon.png';
 	import { apiUrl } from '$lib/api';
 	import { onMount, onDestroy } from 'svelte';
 	import { lastUpdatedReportId } from '$lib/stores/liveUpdates';
