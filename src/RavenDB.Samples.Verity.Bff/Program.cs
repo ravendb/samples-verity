@@ -5,6 +5,7 @@ using Yarp.ReverseProxy.Forwarder;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.AddServiceDefaults();
+builder.Services.AddDataProtection().UseEphemeralDataProtectionProvider();
 
 // ─── URLs injected by AppHost ────────────────────────────────────────────────
 var identityUrl = builder.Configuration["Identity:Url"]
