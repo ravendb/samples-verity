@@ -1,0 +1,12 @@
+{
+  "profiles": {
+    "RavenDB.Samples.Verity.IdentityServer": {
+      "commandName": "Project",
+      "launchBrowser": true,
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      },
+      "applicationUrl": "https://localhost:51966;http://localhost:51968"
+    }
+  }
+}
