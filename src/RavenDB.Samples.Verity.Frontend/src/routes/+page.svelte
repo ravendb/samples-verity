@@ -5,6 +5,10 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { getCompanies, saveCompany, type Company } from '$lib/services/companies';
+  import { getUser, type UserInfo } from '$lib/auth';
+  import AuthBar from '$lib/components/AuthBar.svelte';
+
+  let user = $state<UserInfo | null>(null);
 
   let companies   = $state<Company[]>([]);
   let status      = $state<'loading' | 'ok' | 'empty' | 'error'>('loading');
@@ -19,7 +23,10 @@
   let addStatus   = $state<'idle' | 'loading' | 'ok' | 'error'>('idle');
   let addErrorMsg = $state('');
 
-  onMount(loadCompanies);
+  onMount(async () => {
+    user = await getUser();
+    await loadCompanies();
+  });
 
   async function loadCompanies(page = currentPage) {
     status = 'loading';
@@ -66,8 +73,14 @@
 
 <main>
   <header>
+    <div></div>
     <h1><a href="/" class="verity-brand">Verity:</a> The Fiscal Truth Engine</h1>
-    <button class="add-btn" onclick={openModal}>+ Add Company</button>
+    <div class="header-right">
+      <AuthBar />
+      {#if user}
+        <button class="add-btn" onclick={openModal}>+ Add Company</button>
+      {/if}
+    </div>
   </header>
 
   {#if status === 'loading'}
@@ -166,33 +179,28 @@
 
 	/* Header */
 	header {
-	display: flex;
+	display: grid;
+	grid-template-columns: 1fr auto 1fr;
 	align-items: center;
-	justify-content: space-between;
 	background: #0b2e5c;
 	color: #fff;
 	padding: 1rem 2rem;
 	box-shadow: 0 2px 8px rgba(0,0,0,.5);
 	}
 
-	.header-left {
+	header h1 { text-align: center; }
+
+	.header-right {
 	display: flex;
 	align-items: center;
-	gap: 0.75rem;
+	gap: 0.5rem;
+	justify-self: end;
 	}
 
 	h1 {
 	margin: 0;
 	font-size: 1.3rem;
 	font-weight: 600;
-	flex: 1;
-	}
-
-	.badge {
-	font-size: 0.8rem;
-	background: rgba(255,255,255,.12);
-	padding: 0.2rem 0.6rem;
-	border-radius: 999px;
 	}
 
 	.add-btn {

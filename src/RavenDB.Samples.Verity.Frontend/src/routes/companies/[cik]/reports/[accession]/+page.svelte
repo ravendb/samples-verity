@@ -1,10 +1,12 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { page } from '$app/stores';
+  import { goto } from '$app/navigation';
   import { getReport, type Report } from '$lib/services/reports';
-  import { generateAuditDraft, getAuditRevisions, restoreAuditRevision, saveAudit, type Audit, type AuditRevision } from '$lib/services/audit';
-  import { getUsersByCompany, type User } from '$lib/services/users';
+  import { generateAuditDraft, getAuditRevisions, restoreAuditRevision, saveAudit, type AuditRevision } from '$lib/services/audit';
+  import { getUser, loginUrl, type UserInfo } from '$lib/auth';
   import AuditDiff from '$lib/components/AuditDiff.svelte';
+  import AuthBar from '$lib/components/AuthBar.svelte';
 
   const accession = decodeURIComponent($page.params.accession);
 
@@ -32,21 +34,16 @@
 
   // Inline edit form
   let editing      = $state(false);
-  let users        = $state<User[]>([]);
+  let user = $state<UserInfo | null>(null);
   let selectedUser = $state<string>(''); // user id
   let formNotes    = $state('');
   let saveStatus   = $state<'idle' | 'saving' | 'error'>('idle');
   let agentStatus  = $state<'idle' | 'loading' | 'error'>('idle');
   let notesFromAi  = $state(false);
 
-  async function openForm() {
+  function openForm() {
     const current = revisions[0]?.data;
-    users         = await getUsersByCompany(report!.companyId);
-    // Pre-select the user matching the current auditor
-    const match   = users.find(u =>
-      u.name === current?.auditorName && u.surname === current?.auditorSurname
-    );
-    selectedUser  = match?.id ?? (users[0]?.id ?? '');
+    selectedUser  = user!.sub;
     formNotes     = current?.auditString ?? '';
     notesFromAi   = current?.generatedByAi ?? false;
     saveStatus    = 'idle';
@@ -54,15 +51,14 @@
   }
 
   async function handleSave() {
-    const user = users.find(u => u.id === selectedUser);
     if (!user) return;
     saveStatus = 'saving';
     try {
       await saveAudit({
         reportId:       report!.id,
-        auditorName:    user.name,
-        auditorSurname: user.surname,
-        auditorEmail:   user.email,
+        auditorName:    user!.givenName || user!.name,
+        auditorSurname: user!.familyName,
+        auditorEmail:   user!.email,
         auditString:    formNotes,
         generatedByAi:  notesFromAi,
       });
@@ -110,6 +106,11 @@
   }
 
   onMount(async () => {
+    user = await getUser();
+    if (!user) {
+      await goto(loginUrl($page.url.pathname + $page.url.search));
+      return;
+    }
     try {
       report = await getReport(accession);
       revisions = (await getAuditRevisions(report.id)) ?? [];
@@ -145,12 +146,15 @@
 
 <main>
   <header>
+    <a href="/companies/{encodeURIComponent($page.params.cik ?? '')}" class="back-btn">← Back</a>
     {#if report}
       <h1><a href="/" class="verity-brand">Verity:</a> {report.companyId.split('/')[1]} - {report.year} · Q{report.quarter}</h1>
     {:else}
       <h1><a href="/" class="verity-brand">Verity:</a> Report</h1>
     {/if}
-    <a href="/companies/{encodeURIComponent($page.params.cik)}" class="back-btn">← Back</a>
+    <div class="header-right">
+      <AuthBar />
+    </div>
   </header>
 
   {#if status === 'loading'}
@@ -246,7 +250,7 @@
       <section class="card">
         <div class="audit-section-header">
           <h2 class="section-title" style="margin:0">Audit</h2>
-          {#if !editing}
+          {#if !editing && user?.companyId && user.companyId === report.companyId}
             <button class="edit-btn" onclick={openForm}>
               {revisions.length > 0 ? '✎ Edit' : '+ Add Audit'}
             </button>
@@ -258,15 +262,7 @@
           <form class="audit-form" onsubmit={(e) => { e.preventDefault(); handleSave(); }}>
             <label class="full">
               <span>Auditor</span>
-              {#if users.length > 0}
-                <select bind:value={selectedUser} required>
-                  {#each users as u}
-                    <option value={u.id}>{u.name} {u.surname} — {u.email}</option>
-                  {/each}
-                </select>
-              {:else}
-                <p class="no-users">No users found for this company.</p>
-              {/if}
+              <div class="auditor-display">{user!.givenName || user!.name} {user!.familyName} — {user!.email}</div>
             </label>
             <div class="notes-label-row">
               <button
@@ -344,12 +340,14 @@
                       <span class="history-auditor">{rev.data.auditorName} {rev.data.auditorSurname}</span>
                       <span class="history-date">{fmtDate(rev.lastModified)}</span>
                     </div>
-                    <button
-                      class="restore-btn"
-                      disabled={restoreStatus === 'loading' && restoreIdx === idx}
-                      onclick={() => handleRestore(idx)}>
-                      {restoreStatus === 'loading' && restoreIdx === idx ? 'Restoring…' : '↩ Restore'}
-                    </button>
+                    {#if user?.companyId && user.companyId === report?.companyId}
+                      <button
+                        class="restore-btn"
+                        disabled={restoreStatus === 'loading' && restoreIdx === idx}
+                        onclick={() => handleRestore(idx)}>
+                        {restoreStatus === 'loading' && restoreIdx === idx ? 'Restoring…' : '↩ Restore'}
+                      </button>
+                    {/if}
                   </div>
                   {#if restoreStatus === 'ok' && restoreIdx === null}
                     <span class="restore-feedback ok">✓ Restored.</span>
@@ -378,13 +376,22 @@
 	}
 
 	header {
-	display: flex;
+	display: grid;
+	grid-template-columns: 1fr auto 1fr;
 	align-items: center;
-	gap: 1rem;
 	background: #0b2e5c;
 	color: #fff;
 	padding: 1rem 2rem;
 	box-shadow: 0 2px 8px rgba(0,0,0,.5);
+	}
+
+	header h1 { text-align: center; }
+
+	.header-right {
+	display: flex;
+	align-items: center;
+	gap: 0.75rem;
+	justify-self: end;
 	}
 
 	h1 {
@@ -449,8 +456,16 @@
 	color: #5e7a96;
 	}
 
+	.auditor-display {
+	padding: 0.5rem 0.75rem;
+	border: 1.5px solid #243550;
+	border-radius: 7px;
+	font-size: 0.9rem;
+	color: #8aa4be;
+	background: #0d1825;
+	}
+
 	.audit-form select,
-	.audit-form input,
 	.audit-form textarea {
 	padding: 0.5rem 0.75rem;
 	border: 1.5px solid #243550;
@@ -463,15 +478,7 @@
 	transition: border-color 0.15s;
 	}
 	.audit-form select:focus,
-	.audit-form input:focus,
 	.audit-form textarea:focus { outline: none; border-color: #5b9bd5; background: #19253a; }
-
-	.no-users {
-	margin: 0;
-	font-size: 0.85rem;
-	color: #5e7a96;
-	font-style: italic;
-	}
 
 	.form-actions {
 	display: flex;

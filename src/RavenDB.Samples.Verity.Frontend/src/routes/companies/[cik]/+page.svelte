@@ -4,9 +4,13 @@
   import { goto } from '$app/navigation';
   import { getReportsByCik, fetch10Q, type Report } from '$lib/services/reports';
   import { getCompany, type Company } from '$lib/services/companies';
+  import { getUser, type UserInfo } from '$lib/auth';
+  import { authModal } from '$lib/stores/authModal';
+  import AuthBar from '$lib/components/AuthBar.svelte';
 
   const cik = decodeURIComponent($page.params.cik);
 
+  let user      = $state<UserInfo | null>(null);
   let company   = $state<Company | null>(null);
   let reports   = $state<Report[]>([]);
   let status    = $state<'loading' | 'ok' | 'error'>('loading');
@@ -16,7 +20,12 @@
   let fetchErrorMsg = $state('');
   let maxReports    = $state(5);
 
-  onMount(loadData);
+  let canFetch = $derived(!!user?.companyId && company !== null && user.companyId === company.id);
+
+  onMount(async () => {
+    user = await getUser();
+    await loadData();
+  });
 
   $effect(() => {
     document.title = company ? `Verity - ${company.name}` : 'Verity';
@@ -51,6 +60,14 @@
       fetchErrorMsg = e instanceof Error ? e.message : 'Unknown error';
       fetchStatus   = 'error';
     }
+  }
+
+  function openReport(accessionNumber: string) {
+    if (!user) {
+      authModal.openLogin('Sign in to view report details.');
+      return;
+    }
+    goto(`/companies/${encodeURIComponent(cik)}/reports/${encodeURIComponent(accessionNumber)}`);
   }
 
   function formatNumber(n: number | null | undefined): string {
@@ -177,13 +194,16 @@
 
 <main>
   <header>
+    <a href="/" class="back-btn">← Back</a>
     {#if company}
       <h1><a href="/" class="verity-brand">Verity:</a> {company.name}</h1>
     {:else}
       <h1><a href="/" class="verity-brand">Verity:</a> Company</h1>
     {/if}
-    <a href="/" class="back-btn">← Back</a>
-    <span class="badge">{reports.length} report{reports.length !== 1 ? 's' : ''}</span>
+    <div class="header-right">
+      <span class="badge">{reports.length} report{reports.length !== 1 ? 's' : ''}</span>
+      <AuthBar />
+    </div>
   </header>
 
   {#if status === 'loading'}
@@ -230,31 +250,33 @@
         {/if}
       </div>
 
-      <!-- Fetch 10-Q/K -->
-      <div class="fetch-bar">
-        <button
-          class="fetch-btn"
-          onclick={handleFetch10Q}
-          disabled={fetchStatus === 'loading'}>
-          {fetchStatus === 'loading' ? 'Fetching…' : 'Fetch'}
-        </button>
-        <label for="max-input">last</label>
-        <input
-          id="max-input"
-          type="number"
-          bind:value={maxReports}
-          min="1"
-          max="50"
-          class="input-max"
-          disabled={fetchStatus === 'loading'}
-        />
-        <span class="fetch-label">10-Q/K reports</span>
-      </div>
+      <!-- Fetch 10-Q/K — only for employees of this company -->
+      {#if canFetch}
+        <div class="fetch-bar">
+          <button
+            class="fetch-btn"
+            onclick={handleFetch10Q}
+            disabled={fetchStatus === 'loading'}>
+            {fetchStatus === 'loading' ? 'Fetching…' : 'Fetch'}
+          </button>
+          <label for="max-input">last</label>
+          <input
+            id="max-input"
+            type="number"
+            bind:value={maxReports}
+            min="1"
+            max="50"
+            class="input-max"
+            disabled={fetchStatus === 'loading'}
+          />
+          <span class="fetch-label">10-Q/K reports</span>
+        </div>
 
-      {#if fetchStatus === 'ok'}
-        <p class="feedback ok">✓ Reports fetched and saved successfully.</p>
-      {:else if fetchStatus === 'error'}
-        <p class="feedback error">✗ {fetchErrorMsg || 'Fetch failed.'}</p>
+        {#if fetchStatus === 'ok'}
+          <p class="feedback ok">✓ Reports fetched and saved successfully.</p>
+        {:else if fetchStatus === 'error'}
+          <p class="feedback error">✗ {fetchErrorMsg || 'Fetch failed.'}</p>
+        {/if}
       {/if}
     </section>
 
@@ -281,7 +303,7 @@
               </thead>
               <tbody>
                 {#each reports as r}
-                  <tr class="clickable-row" onclick={() => goto(`/companies/${encodeURIComponent(cik)}/reports/${encodeURIComponent(r.accessionNumber)}`)}>
+                  <tr class="clickable-row" onclick={() => openReport(r.accessionNumber)}>
                     <td><span class="tag" headers="Type">{r.formType}</span></td>
                     <td class="center" headers="Quarter">{r.year} - {r.quarter != null ? `Q${r.quarter}` : '—'}</td>
                     <td class="center" headers="ReportDate">{r.reportDate}</td>
@@ -385,13 +407,22 @@
 
 	/* Header */
 	header {
-	display: flex;
+	display: grid;
+	grid-template-columns: 1fr auto 1fr;
 	align-items: center;
-	gap: 1rem;
 	background: #0b2e5c;
 	color: #fff;
 	padding: 1rem 2rem;
 	box-shadow: 0 2px 8px rgba(0,0,0,.5);
+	}
+
+	header h1 { text-align: center; }
+
+	.header-right {
+	display: flex;
+	align-items: center;
+	gap: 0.75rem;
+	justify-self: end;
 	}
 
 	h1 {
@@ -410,7 +441,6 @@
 	.back-btn:hover { opacity: 1; }
 
 	.badge {
-	margin-left: auto;
 	font-size: 0.8rem;
 	background: rgba(255,255,255,.12);
 	padding: 0.2rem 0.6rem;

@@ -21,20 +21,6 @@ public sealed class ImportCompanies(MigrationContext context) : Migration
 
     private const string DataBase = "https://data.sec.gov";
 
-    private static readonly string[] FirstNames =
-    [
-        "James", "Mary", "Robert", "Patricia", "Michael",
-        "Jennifer", "William", "Linda", "David", "Barbara"
-    ];
-
-    private static readonly string[] LastNames =
-    [
-        "Smith", "Johnson", "Williams", "Brown", "Jones",
-        "Garcia", "Miller", "Davis", "Wilson", "Martinez"
-    ];
-
-    private static readonly Random Rng = new(21);
-
     public override void Up()
     {
         if (Ciks.Length == 0)
@@ -79,27 +65,6 @@ public sealed class ImportCompanies(MigrationContext context) : Migration
                 SicDescription  = root.TryGetProperty("sicDescription", out var sicDesc) ? sicDesc.GetString() : null,
                 FiscalYearStart = fiscalYearStart
             });
-
-            var usedPairs = new HashSet<string>();
-            for (var i = 0; i < 2; i++)
-            {
-                string firstName, lastName;
-                do
-                {
-                    firstName = FirstNames[Rng.Next(FirstNames.Length)];
-                    lastName  = LastNames[Rng.Next(LastNames.Length)];
-                } while (!usedPairs.Add($"{firstName} {lastName}"));
-
-                var domain = name.Replace(" ", "").Replace(",", "").Replace(".", "").ToLowerInvariant();
-                session.Store(new User
-                {
-                    Id        = $"Users/{name}/{firstName} {lastName}",
-                    CompanyId = companyId,
-                    Name      = firstName,
-                    Surname   = lastName,
-                    Email     = $"{firstName.ToLower()}{lastName.ToLower()}@{domain}.com"
-                });
-            }
 
             NewReportsSubscription.Create(DocumentStore, name, companyId).GetAwaiter().GetResult();
         }

@@ -1,0 +1,131 @@
+@page
+@model RavenDB.Samples.Verity.IdentityServer.Pages.Account.Register.IndexModel
+@{
+    Layout = null;
+}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Verity — Create Account</title>
+    <style>
+        *, *::before, *::after { box-sizing: border-box; }
+        body { margin: 0; font-family: system-ui, sans-serif; background: #192d47; color: #e8f0fe; display: flex; align-items: center; justify-content: center; min-height: 100vh; }
+        .card { background: #1e3a5f; border: 1px solid #2e5c9a; border-radius: 12px; padding: 2rem; width: 100%; max-width: 400px; }
+        h1 { margin: 0 0 1.5rem; font-size: 1.5rem; }
+        label { display: block; font-size: 0.85rem; color: #93b4d8; margin-bottom: 0.25rem; }
+        input[type=text], input[type=email], input[type=password] {
+            width: 100%; padding: 0.6rem 0.75rem; border: 1px solid #2e5c9a;
+            border-radius: 6px; background: #122238; color: #e8f0fe;
+            font-size: 1rem; margin-bottom: 1rem; outline: none;
+        }
+        input:focus { border-color: #5b8fd4; }
+        select {
+            width: 100%; padding: 0.6rem 0.75rem; border: 1px solid #2e5c9a;
+            border-radius: 6px; background: #122238; color: #e8f0fe;
+            font-size: 1rem; margin-bottom: 1rem; outline: none; cursor: pointer;
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%235b8fd4' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+            background-repeat: no-repeat; background-position: right 0.75rem center; padding-right: 2rem;
+        }
+        select:focus { border-color: #5b8fd4; }
+        .role-group { display: flex; gap: 1rem; margin-bottom: 1rem; }
+        .role-option { flex: 1; }
+        .role-option input[type=radio] { display: none; }
+        .role-option label {
+            display: block; text-align: center; padding: 0.6rem 0.5rem;
+            border: 1px solid #2e5c9a; border-radius: 6px; cursor: pointer;
+            font-size: 0.9rem; color: #93b4d8; margin-bottom: 0;
+            transition: background 0.15s, color 0.15s, border-color 0.15s;
+        }
+        .role-option input[type=radio]:checked + label {
+            background: #2e5c9a; border-color: #5b8fd4; color: #e8f0fe;
+        }
+        .role-option label:hover { background: rgba(46, 92, 154, 0.3); }
+        #company-field { display: none; }
+        button { width: 100%; padding: 0.7rem; background: #2e5c9a; border: none; border-radius: 6px; color: #e8f0fe; font-size: 1rem; cursor: pointer; }
+        button:hover { background: #3a70b8; }
+        .footer { margin-top: 1rem; font-size: 0.85rem; color: #93b4d8; text-align: center; }
+        .footer a { color: #5b8fd4; text-decoration: none; }
+        .footer a:hover { text-decoration: underline; }
+        .error { color: #f87171; font-size: 0.85rem; margin-bottom: 0.75rem; }
+        .hint { font-size: 0.75rem; color: #6a8fb5; margin-top: -0.75rem; margin-bottom: 1rem; }
+        .section-label { font-size: 0.75rem; color: #6a8fb5; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.5rem; }
+    </style>
+</head>
+<body>
+<div class="card">
+    <h1>Create Account</h1>
+
+    <form method="post">
+        <div asp-validation-summary="All" class="error"></div>
+        <input type="hidden" asp-for="Input.BffReturnUrl" />
+
+        <label asp-for="Input.Username">Username</label>
+        <input asp-for="Input.Username" autocomplete="username" autofocus />
+
+        <label asp-for="Input.DisplayName">Full name</label>
+        <input asp-for="Input.DisplayName" autocomplete="name" />
+
+        <label asp-for="Input.Email">Email</label>
+        <input asp-for="Input.Email" type="email" autocomplete="email" />
+
+        <label asp-for="Input.Password">Password</label>
+        <input asp-for="Input.Password" type="password" autocomplete="new-password" />
+        <p class="hint">At least 8 characters.</p>
+
+        <label asp-for="Input.ConfirmPassword">Confirm password</label>
+        <input asp-for="Input.ConfirmPassword" type="password" autocomplete="new-password" />
+
+        <p class="section-label">Account type</p>
+        <div class="role-group">
+            <div class="role-option">
+                <input type="radio" asp-for="Input.Role" id="role-user" value="User" />
+                <label for="role-user">Regular user</label>
+            </div>
+            <div class="role-option">
+                <input type="radio" asp-for="Input.Role" id="role-employee" value="Employee" />
+                <label for="role-employee">Company employee</label>
+            </div>
+        </div>
+
+        <div id="company-field">
+            <label asp-for="Input.CompanyId">Company</label>
+            @if (Model.CompanyOptions.Count > 0)
+            {
+                <select asp-for="Input.CompanyId" asp-items="Model.CompanyOptions">
+                    <option value="" disabled selected>Select a company…</option>
+                </select>
+            }
+            else
+            {
+                <input asp-for="Input.CompanyId" placeholder="e.g. companies/1-A" autocomplete="off" />
+            }
+        </div>
+
+        <button type="submit">Create Account</button>
+    </form>
+
+    <div class="footer">
+        Already have an account? <a href="/Account/Login">Sign in</a>
+    </div>
+</div>
+<script>
+    (function () {
+        const radios = document.querySelectorAll('input[name="Input.Role"]');
+        const companyField = document.getElementById('company-field');
+        const companyInput = companyField.querySelector('input');
+
+        function update() {
+            const isEmployee = document.getElementById('role-employee').checked;
+            companyField.style.display = isEmployee ? 'block' : 'none';
+            companyInput.required = isEmployee;
+        }
+
+        radios.forEach(r => r.addEventListener('change', update));
+        update();
+    })();
+</script>
+</body>
+</html>
