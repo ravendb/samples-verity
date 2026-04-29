@@ -4,6 +4,7 @@
   import { goto } from '$app/navigation';
   import { getReportsByCik, fetch10Q, type Report } from '$lib/services/reports';
   import { getCompany, type Company } from '$lib/services/companies';
+  import { lastUpdatedReportId } from '$lib/stores/liveUpdates';
   import { getUser, type UserInfo } from '$lib/auth';
   import { authModal } from '$lib/stores/authModal';
   import AuthBar from '$lib/components/AuthBar.svelte';
@@ -29,6 +30,13 @@
 
   $effect(() => {
     document.title = company ? `Verity - ${company.name}` : 'Verity';
+  });
+
+  $effect(() => {
+    const updatedId = $lastUpdatedReportId;
+    if (updatedId && reports.some(r => r.id === updatedId)) {
+      getReportsByCik(cik).then(r => { reports = r; });
+    }
   });
 
   async function loadData() {
