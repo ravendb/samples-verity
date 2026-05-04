@@ -3,7 +3,6 @@ using Microsoft.Azure.Functions.Worker.Builder;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Raven.Migrations;
-using RavenDB.Samples.Verity.App.Application.Usage;
 using RavenDB.Samples.Verity.App.Infrastructure;
 using RavenDB.Samples.Verity.Setup.Migrations;
 
@@ -49,12 +48,6 @@ builder.Services.AddCors(options =>
 });
 
 builder.ConfigureFunctionsWebApplication();
-
-builder.Services.AddSingleton<SessionApiUsageLimiter>();
-builder.Services.AddSingleton<GlobalApiUsageLimiter>();
-
-builder.Services.AddSingleton<SessionApiUsageTracker>();
-builder.Services.AddSingleton<GlobalApiUsageTracker>();
 
 builder.Services.AddHttpContextAccessor();
 
