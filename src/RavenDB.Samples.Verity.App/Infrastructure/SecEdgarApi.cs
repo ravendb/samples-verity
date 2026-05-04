@@ -16,7 +16,6 @@ public class SecEdgarApi(HttpClient http, IDocumentStore store, ILogger<SecEdgar
 {
     private const string EdgarBase = "https://www.sec.gov";
     private const string DataBase  = "https://data.sec.gov";
-    private const string RemoteId = "verity-azure-storage";
     private string Cik = null!;
     private string CompanyName = null!;
     private DateTime FiscalYearStart = default;
@@ -133,7 +132,7 @@ public class SecEdgarApi(HttpClient http, IDocumentStore store, ILogger<SecEdgar
         await session.StoreAsync(report, docId, ct);
 
         var remoteParameters = new RemoteAttachmentParameters(
-            identifier: RemoteId, // The remote destination ID you’ve defined
+            identifier: Setup.Constants.RemoteAttachmentId, // The remote destination ID you’ve defined
             at: DateTime.UtcNow.AddMinutes(10));
 
         var storeParameters = new StoreAttachmentParameters($"form{formType}.htm", cleanedStream)

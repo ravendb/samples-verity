@@ -14,7 +14,6 @@ namespace RavenDB.Samples.Verity.App.Infrastructure
             public const string SecEdgarUserAgent = "SAMPLES_VERITY_SEC_EDGAR_USER_AGENT";
 
             // Azure Storage – Remote Attachments
-            public const string AzureStorageIdentity = "SAMPLES_VERITY_AZURE_STORAGE_IDENTITY";
             public const string AzureStorageContainer = "SAMPLES_VERITY_AZURE_STORAGE_CONTAINER";
             public const string AzureAccountName = "SAMPLES_VERITY_AZURE_ACCOUNT_NAME";
             public const string AzureAccountKey = "SAMPLES_VERITY_AZURE_ACCOUNT_KEY";

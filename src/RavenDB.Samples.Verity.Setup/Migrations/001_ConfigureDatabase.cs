@@ -32,7 +32,7 @@ public sealed class ConfigureDatabase(MigrationContext context) : Migration
             Destinations = new Dictionary<string, RemoteAttachmentsDestinationConfiguration>
             {
                 {
-                    context.AzureStorageIdentity,
+                    Constants.RemoteAttachmentId,
                     new RemoteAttachmentsDestinationConfiguration
                     {
                         AzureSettings = new RemoteAttachmentsAzureSettings

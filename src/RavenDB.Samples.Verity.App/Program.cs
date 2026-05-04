@@ -21,7 +21,6 @@ builder.Services.AddHostedService<MigrationStartup>();
 
 builder.Services.AddSingleton(new MigrationContext(
     openAiApiKey:                       Environment.GetEnvironmentVariable(Constants.EnvVars.OpenAiApiKey) ?? "",
-    azureStorageIdentity:               Environment.GetEnvironmentVariable(Constants.EnvVars.AzureStorageIdentity) ?? "",
     azureStorageContainer:              Environment.GetEnvironmentVariable(Constants.EnvVars.AzureStorageContainer) ?? "",
     azureAccountName:                   Environment.GetEnvironmentVariable(Constants.EnvVars.AzureAccountName) ?? "",
     azureAccountKey:                    Environment.GetEnvironmentVariable(Constants.EnvVars.AzureAccountKey) ?? "",
