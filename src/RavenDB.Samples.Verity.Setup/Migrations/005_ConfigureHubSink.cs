@@ -23,12 +23,12 @@ public sealed class ConfigureHubSink(MigrationContext context) : Migration
         using var sinkStore = new DocumentStore
         {
             Urls     = [context.SinkServerUrl],
-            Database = context.SinkName
+            Database = Constants.DatabaseSinkName
         }.Initialize();
 
         try
         {
-            sinkStore.Maintenance.Server.Send(new CreateDatabaseOperation(new DatabaseRecord(context.SinkName)));
+            sinkStore.Maintenance.Server.Send(new CreateDatabaseOperation(new DatabaseRecord(Constants.DatabaseSinkName)));
         }
         catch (Exception ex) when (ex.Message.Contains("already exists")) { }
 

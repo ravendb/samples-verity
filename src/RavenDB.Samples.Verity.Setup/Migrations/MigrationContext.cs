@@ -13,7 +13,6 @@ public class MigrationContext(
     string azureQueueEndpointSuffix,
     string secEdgarUserAgent,
     string sinkServerUrl,
-    string sinkName,
     string hubServerInternalUrl)
 {
     public string OpenAiApiKey { get; } = openAiApiKey;
@@ -25,6 +24,5 @@ public class MigrationContext(
     public string AzureQueueEndpointSuffix           { get; } = azureQueueEndpointSuffix;
     public string SecEdgarUserAgent { get; } = secEdgarUserAgent;
     public string SinkServerUrl { get; } = sinkServerUrl;
-    public string SinkName      { get; } = sinkName;
     public string HubServerInternalUrl { get; } = hubServerInternalUrl;
 }

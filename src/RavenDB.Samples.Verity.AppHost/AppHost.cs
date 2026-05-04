@@ -8,9 +8,10 @@ var storage = builder.AddAzureStorage("storage").RunAsEmulator();
 var queues = storage.AddQueues("queues");
 
 // Parameters
+const string commandKey = "CommandKey";
+var secretKey = builder.AddParameter(commandKey, secret: true);
+
 var ravenDbLicense        = builder.AddParameter("ravendb-license", secret: true);
-var databaseName          = builder.AddParameter("database-name");
-var commandKey            = builder.AddParameter("command-key", secret: true);
 var secEdgarUserAgent     = builder.AddParameter("sec-edgar-user-agent");
 var openAiApiKey          = builder.AddParameter("openai-api-key", secret: true);
 var azureStorageIdentity  = builder.AddParameter("azure-storage-identity");
@@ -60,8 +61,6 @@ var functions = builder.AddAzureFunctionsProject<RavenDB_Samples_Verity_App>("ap
     .WithReference(sink)
     .WaitFor(sink)
 
-    .WithEnvironment("SAMPLES_VERITY_DB_NAME", databaseName)
-
     .WithEnvironment("SAMPLES_VERITY_SEC_EDGAR_USER_AGENT", secEdgarUserAgent)
     .WithEnvironment("SAMPLES_VERITY_OPENAI_API_KEY", openAiApiKey)
 
@@ -81,11 +80,9 @@ var functions = builder.AddAzureFunctionsProject<RavenDB_Samples_Verity_App>("ap
 
     // Hub/Sink Replication
     .WithEnvironment("SAMPLES_VERITY_SINK_SERVER_URL",         ravenDbServer.GetEndpoint("http"))
-    .WithEnvironment("SAMPLES_VERITY_SINK_DATABASE_NAME",
-        ReferenceExpression.Create($"{databaseName.Resource}-sink"))
     .WithEnvironment("SAMPLES_VERITY_HUB_SERVER_INTERNAL_URL", hubInternalUrl)
 
-    .WithEnvironment("CommandKey", commandKey)
+    .WithEnvironment("CommandKey", secretKey)
     .WithHttpCommand(
         path: "/api/migrate",
         displayName: "Migrate DB",
@@ -94,7 +91,7 @@ var functions = builder.AddAzureFunctionsProject<RavenDB_Samples_Verity_App>("ap
             Description = "Runs database migrations",
             PrepareRequest = async context =>
             {
-                var key = await commandKey.Resource.GetValueAsync(CancellationToken.None);
+                var key = await secretKey.Resource.GetValueAsync(CancellationToken.None);
                 context.Request.Headers.Add("X-Command-Key", key);
             },
             IconName = "databaseArrowUp",
