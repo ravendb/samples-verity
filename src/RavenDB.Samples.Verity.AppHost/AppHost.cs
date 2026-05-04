@@ -31,8 +31,6 @@ var settings = RavenDBServerSettings.Unsecured();
 settings.Port = 9534;
 settings.TcpPort = 41350;
 
-var hubInternalUrl = $"http://host.docker.internal:{settings.Port!.Value}";
-
 var ravenDbServer = builder
     .AddRavenDB("RavenDB", settings)
     .WithImage("ravendb/ravendb", "7.2-latest")
@@ -42,6 +40,8 @@ var ravenDbServer = builder
 
 var db   = ravenDbServer.AddDatabase("Verity");
 var sink = ravenDbServer.AddDatabase("Verity-sink");
+
+var hubInternalUrl = $"http://host.docker.internal:{settings.Port!.Value}";
 
 // Verity App
 var functions = builder.AddAzureFunctionsProject<RavenDB_Samples_Verity_App>("app")

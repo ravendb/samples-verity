@@ -1,0 +1,22 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:aspire.dev)",
+      "Bash(dotnet build *)",
+      "Bash(dotnet list *)",
+      "Bash(powershell *)",
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\szymon.kulec\\\\.nuget\\\\packages\\\\communitytoolkit.aspire.hosting.ravendb\" -Recurse -ErrorAction SilentlyContinue)",
+      "Bash(Select-Object -First 50)",
+      "PowerShell(cd \"C:\\\\Users\\\\szymon.kulec\\\\.nuget\\\\packages\\\\communitytoolkit.aspire.hosting.ravendb\\\\13.1.1\"; Get-ChildItem -Recurse -Directory | Where-Object { $_.Name -eq \"src\" -or $_.Name -eq \"source\" -or $_.Name -contains \"Source\" })",
+      "PowerShell(cd \"C:\\\\Users\\\\szymon.kulec\\\\.nuget\\\\packages\\\\communitytoolkit.aspire.hosting.ravendb\\\\13.1.1\"; $nupkg = Get-Item \"communitytoolkit.aspire.hosting.ravendb.13.1.1.nupkg\"; Write-Output \"File size: $\\($nupkg.Length\\) bytes\"; Add-Type -AssemblyName System.IO.Compression; $zip = [System.IO.Compression.ZipFile]::OpenRead\\($nupkg.FullName\\); $zip.Entries | Where-Object { $_.Name.EndsWith\\(\".cs\"\\) -or $_.Name.EndsWith\\(\".fs\"\\) -or $_.Name.EndsWith\\(\".vb\"\\) } | Select-Object -First 20; $zip.Dispose\\(\\))",
+      "PowerShell(Get-Command *)",
+      "PowerShell(dotnet tool list *)",
+      "PowerShell(dotnet tool install *)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "WebFetch(domain:api.github.com)",
+      "WebSearch",
+      "PowerShell(Get-ChildItem *)"
+    ]
+  }
+}
