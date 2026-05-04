@@ -2,7 +2,6 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.Logging;
-using Raven.Client.Documents;
 using Raven.Client.Documents.Session;
 using RavenDB.Samples.Verity.Model;
 using System.Net.Http.Headers;
@@ -15,7 +14,6 @@ namespace RavenDB.Samples.Verity.App.Infrastructure;
 public class VerityAgentApi(
     ILogger<VerityAgentApi> logger,
     IAsyncDocumentSession session,
-    IDocumentStore store,
     IHttpClientFactory httpClientFactory)
 {
     // GET /api/agent/audit/context?reportId=Reports/1-A&userId=Users/Acme/John+Smith
@@ -47,7 +45,7 @@ public class VerityAgentApi(
         string reportText;
         if (attachmentResult is not null)
         {
-            using var reader = new System.IO.StreamReader(attachmentResult.Stream);
+            using var reader = new StreamReader(attachmentResult.Stream);
             var html = await reader.ReadToEndAsync(req.HttpContext.RequestAborted);
             // Strip tags for a cleaner plain-text feed to the model
             reportText = System.Text.RegularExpressions.Regex.Replace(html, "<[^>]+>", " ");
@@ -124,7 +122,7 @@ public class VerityAgentApi(
         string reportText;
         if (attachmentResult is not null)
         {
-            using var reader = new System.IO.StreamReader(attachmentResult.Stream);
+            using var reader = new StreamReader(attachmentResult.Stream);
             var html = await reader.ReadToEndAsync(req.HttpContext.RequestAborted);
             reportText = System.Text.RegularExpressions.Regex.Replace(html, "<[^>]+>", " ");
             reportText = System.Text.RegularExpressions.Regex.Replace(reportText, @"\s{2,}", " ").Trim();

@@ -2,7 +2,6 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Logging;
 using Raven.Migrations;
 using Raven.Client.Documents;
 using Raven.Client.Documents.AI;
@@ -25,7 +24,6 @@ namespace RavenDB.Samples.Verity.App;
 
 // ── Azure Functions API ───────────────────────────────────────
 public class Api(
-    ILogger<Api> logger,
     IAsyncDocumentSession session,
     IDocumentStore store,
     IConfiguration config,
