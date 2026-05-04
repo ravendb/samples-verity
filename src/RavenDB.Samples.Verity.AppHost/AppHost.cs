@@ -1,7 +1,5 @@
 using CommunityToolkit.Aspire.Hosting.RavenDB;
-using Microsoft.Extensions.Configuration;
 using Projects;
-using System.Text.Json;
 
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -9,20 +7,34 @@ var builder = DistributedApplication.CreateBuilder(args);
 var storage = builder.AddAzureStorage("storage").RunAsEmulator();
 var queues = storage.AddQueues("queues");
 
-// RavenDB
-// https://learn.microsoft.com/en-us/dotnet/aspire/community-toolkit/ravendb?tabs=dotnet-cli#hosting-integration
-var license = JsonSerializer.Serialize(
-    builder.Configuration.GetSection("RavenDB:License").Get<RavenLicense>());
+// Parameters
+var ravenDbLicense        = builder.AddParameter("ravendb-license", secret: true);
+var databaseName          = builder.AddParameter("database-name");
+var commandKey            = builder.AddParameter("command-key", secret: true);
+var secEdgarUserAgent     = builder.AddParameter("sec-edgar-user-agent");
+var openAiApiKey          = builder.AddParameter("openai-api-key", secret: true);
+var azureStorageIdentity  = builder.AddParameter("azure-storage-identity");
+var azureStorageContainer = builder.AddParameter("azure-storage-container");
+var azureAccountName      = builder.AddParameter("azure-account-name");
+var azureAccountKey       = builder.AddParameter("azure-account-key", secret: true);
+var azureRemoteFolder     = builder.AddParameter("azure-remote-folder-name");
+var azureQueueProtocol    = builder.AddParameter("azure-queue-protocol");
+var azureQueueSuffix      = builder.AddParameter("azure-queue-endpoint-suffix");
 
+// RavenDB
 var settings = RavenDBServerSettings.Unsecured();
-if (!string.IsNullOrEmpty(license))
+var licenseJson = builder.Configuration["Parameters:ravendb-license"];
+if (!string.IsNullOrEmpty(licenseJson))
 {
-    settings.WithLicense(license);
+    settings.WithLicense(licenseJson);
 }
 
 settings.Port = 9534;
 settings.TcpPort = 41350;
 var hubInternalUrl = $"http://host.docker.internal:{settings.Port!.Value}";
+
+var dbName   = builder.Configuration["Parameters:database-name"] ?? "verity";
+var sinkName = $"{dbName}-sink";
 
 var ravenDbServer = builder
     .AddRavenDB("RavenDB", settings)
@@ -31,15 +43,8 @@ var ravenDbServer = builder
     .WithReference(queues)
     .WaitFor(queues);
 
-var dbName   = builder.Configuration["DatabaseName"]!;
-var sinkName = $"{dbName}-sink";
-
-var db = ravenDbServer
-    .AddDatabase(dbName);
-
-var sink = ravenDbServer
-    .AddDatabase(sinkName);
-
+var db   = ravenDbServer.AddDatabase(dbName);
+var sink = ravenDbServer.AddDatabase(sinkName);
 
 // Verity App
 var functions = builder.AddAzureFunctionsProject<RavenDB_Samples_Verity_App>("app")
@@ -55,43 +60,42 @@ var functions = builder.AddAzureFunctionsProject<RavenDB_Samples_Verity_App>("ap
     .WithReference(sink)
     .WaitFor(sink)
 
-    .WithEnvironment("SAMPLES_VERITY_DB_NAME", dbName)
+    .WithEnvironment("SAMPLES_VERITY_DB_NAME", databaseName)
 
-    .WithEnvironment("SAMPLES_VERITY_SEC_EDGAR_USER_AGENT", builder.Configuration["SecEdgar:UserAgent"])
-    .WithEnvironment("SAMPLES_VERITY_OPENAI_API_KEY", builder.Configuration["OpenAI:ApiKey"])
+    .WithEnvironment("SAMPLES_VERITY_SEC_EDGAR_USER_AGENT", secEdgarUserAgent)
+    .WithEnvironment("SAMPLES_VERITY_OPENAI_API_KEY", openAiApiKey)
 
     // Azure Storage – Remote Attachments
-    .WithEnvironment("SAMPLES_VERITY_AZURE_STORAGE_IDENTITY", builder.Configuration["AzureStorage:Identity"])
-    .WithEnvironment("SAMPLES_VERITY_AZURE_STORAGE_CONTAINER", builder.Configuration["AzureStorage:StorageContainer"])
-    .WithEnvironment("SAMPLES_VERITY_AZURE_ACCOUNT_NAME", builder.Configuration["AzureStorage:AccountName"])
-    .WithEnvironment("SAMPLES_VERITY_AZURE_ACCOUNT_KEY", builder.Configuration["AzureStorage:AccountKey"])
-    .WithEnvironment("SAMPLES_VERITY_AZURE_REMOTE_FOLDER_NAME", builder.Configuration["AzureStorage:RemoteFolderName"]) // Optional
+    .WithEnvironment("SAMPLES_VERITY_AZURE_STORAGE_IDENTITY",   azureStorageIdentity)
+    .WithEnvironment("SAMPLES_VERITY_AZURE_STORAGE_CONTAINER",  azureStorageContainer)
+    .WithEnvironment("SAMPLES_VERITY_AZURE_ACCOUNT_NAME",       azureAccountName)
+    .WithEnvironment("SAMPLES_VERITY_AZURE_ACCOUNT_KEY",        azureAccountKey)
+    .WithEnvironment("SAMPLES_VERITY_AZURE_REMOTE_FOLDER_NAME", azureRemoteFolder)
 
     // Azure Storage – Queue ETL + QueueTrigger
-    .WithEnvironment("SAMPLES_VERITY_AZURE_QUEUE_DEFAULT_ENDPOINTS_PROTOCOL", builder.Configuration["AzureStorage:QueueDefaultEndpointsProtocol"])
-    .WithEnvironment("SAMPLES_VERITY_AZURE_QUEUE_ENDPOINT_SUFFIX",            builder.Configuration["AzureStorage:QueueEndpointSuffix"])
+    .WithEnvironment("SAMPLES_VERITY_AZURE_QUEUE_DEFAULT_ENDPOINTS_PROTOCOL", azureQueueProtocol)
+    .WithEnvironment("SAMPLES_VERITY_AZURE_QUEUE_ENDPOINT_SUFFIX",            azureQueueSuffix)
     .WithEnvironment("SAMPLES_VERITY_AZURE_QUEUE_CONNECTION",
-        $"DefaultEndpointsProtocol={builder.Configuration["AzureStorage:QueueDefaultEndpointsProtocol"]};" +
-        $"AccountName={builder.Configuration["AzureStorage:AccountName"]};" +
-        $"AccountKey={builder.Configuration["AzureStorage:AccountKey"]};" +
-        $"EndpointSuffix={builder.Configuration["AzureStorage:QueueEndpointSuffix"]}")
+        ReferenceExpression.Create(
+            $"DefaultEndpointsProtocol={azureQueueProtocol.Resource};AccountName={azureAccountName.Resource};AccountKey={azureAccountKey.Resource};EndpointSuffix={azureQueueSuffix.Resource}"))
 
     // Hub/Sink Replication
     .WithEnvironment("SAMPLES_VERITY_SINK_SERVER_URL",         ravenDbServer.GetEndpoint("http"))
-    .WithEnvironment("SAMPLES_VERITY_SINK_DATABASE_NAME",      sinkName)
+    .WithEnvironment("SAMPLES_VERITY_SINK_DATABASE_NAME",
+        ReferenceExpression.Create($"{databaseName.Resource}-sink"))
     .WithEnvironment("SAMPLES_VERITY_HUB_SERVER_INTERNAL_URL", hubInternalUrl)
 
-    .WithEnvironment("CommandKey", builder.Configuration["CommandKey"])
+    .WithEnvironment("CommandKey", commandKey)
     .WithHttpCommand(
         path: "/api/migrate",
         displayName: "Migrate DB",
         commandOptions: new HttpCommandOptions
         {
             Description = "Runs database migrations",
-            PrepareRequest = context =>
+            PrepareRequest = async context =>
             {
-                context.Request.Headers.Add("X-Command-Key", builder.Configuration["CommandKey"]);
-                return Task.CompletedTask;
+                var key = await commandKey.Resource.GetValueAsync(CancellationToken.None);
+                context.Request.Headers.Add("X-Command-Key", key);
             },
             IconName = "databaseArrowUp",
             IsHighlighted = true
@@ -105,7 +109,7 @@ builder.AddExecutable("subscriptions", "cmd", "../RavenDB.Samples.Verity.DataSub
     .WaitFor(sink);
 
 // Frontend
-var frontend = builder.AddNpmApp("Frontend", "../RavenDB.Samples.Verity.Frontend", "dev")
+builder.AddNpmApp("Frontend", "../RavenDB.Samples.Verity.Frontend", "dev")
     .WithReference(functions)
     .WithEnvironment("BROWSER", "none")
     .WithEnvironment("APP_HTTP", functions.GetEndpoint("http"))
@@ -115,5 +119,3 @@ var frontend = builder.AddNpmApp("Frontend", "../RavenDB.Samples.Verity.Frontend
     .WaitFor(functions);
 
 builder.Build().Run();
-
-record RavenLicense(string Id, string Name, string[] Keys);
