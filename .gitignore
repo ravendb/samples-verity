@@ -420,3 +420,6 @@ FodyWeavers.xsd
 *.msm
 *.msp
 /src/RavenDB.Samples.Verity.AppHost/appsettings.Development.json
+
+# Idea
+.idea
