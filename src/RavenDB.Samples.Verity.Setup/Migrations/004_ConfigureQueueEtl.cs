@@ -11,19 +11,13 @@ public sealed class ConfigureQueueEtl(MigrationContext context) : Migration
 {
     public override void Up()
     {
-        var connectionString =
-            $"DefaultEndpointsProtocol={context.AzureQueueDefaultEndpointsProtocol};" +
-            $"AccountName={context.AzureAccountName};" +
-            $"AccountKey={context.AzureAccountKey};" +
-            $"EndpointSuffix={context.AzureQueueEndpointSuffix}";
-
         DocumentStore.Maintenance.Send(new PutConnectionStringOperation<QueueConnectionString>(new QueueConnectionString
         {
-            Name       = AuditRevisionQueueEtlTask.ConnectionStringName,
+            Name = AuditRevisionQueueEtlTask.ConnectionStringName,
             BrokerType = QueueBrokerType.AzureQueueStorage,
             AzureQueueStorageConnectionSettings = new AzureQueueStorageConnectionSettings
             {
-                ConnectionString = connectionString
+                ConnectionString = context.AzureStorageConnectionString
             }
         }));
 

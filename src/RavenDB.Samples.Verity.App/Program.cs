@@ -18,16 +18,11 @@ builder.AddRavenDBClient(RavenDB.Samples.Verity.Setup.Constants.DatabaseName, se
 builder.Services.AddHostedService<MigrationStartup>();
 
 builder.Services.AddSingleton(new MigrationContext(
-    openAiApiKey:                       Environment.GetEnvironmentVariable(Constants.EnvVars.OpenAiApiKey) ?? "",
-    azureStorageContainer:              Environment.GetEnvironmentVariable(Constants.EnvVars.AzureStorageContainer) ?? "",
-    azureAccountName:                   Environment.GetEnvironmentVariable(Constants.EnvVars.AzureAccountName) ?? "",
-    azureAccountKey:                    Environment.GetEnvironmentVariable(Constants.EnvVars.AzureAccountKey) ?? "",
-    azureRemoteFolderName:              Environment.GetEnvironmentVariable(Constants.EnvVars.AzureRemoteFolderName) ?? "",
-    azureQueueDefaultEndpointsProtocol: Environment.GetEnvironmentVariable(Constants.EnvVars.AzureQueueDefaultEndpointsProtocol) ?? "",
-    azureQueueEndpointSuffix:           Environment.GetEnvironmentVariable(Constants.EnvVars.AzureQueueEndpointSuffix) ?? "",
-    secEdgarUserAgent:                  Environment.GetEnvironmentVariable(Constants.EnvVars.SecEdgarUserAgent) ?? "",
-    sinkServerUrl:                      Environment.GetEnvironmentVariable(Constants.EnvVars.SinkServerUrl) ?? "",
-    hubServerInternalUrl:               Environment.GetEnvironmentVariable(Constants.EnvVars.HubServerInternalUrl) ?? ""
+    Environment.GetEnvironmentVariable(Constants.EnvVars.OpenAiApiKey) ?? "",
+    Environment.GetEnvironmentVariable(Constants.EnvVars.AzureStorageConnectionString) ?? "",
+    Environment.GetEnvironmentVariable(Constants.EnvVars.SecEdgarUserAgent) ?? "",
+    Environment.GetEnvironmentVariable(Constants.EnvVars.SinkServerUrl) ?? "",
+    Environment.GetEnvironmentVariable(Constants.EnvVars.HubServerInternalUrl) ?? ""
 ));
 
 builder.Services.AddRavenDbMigrations(migrations =>

@@ -336,7 +336,7 @@ public class Api(
     // QueueTrigger: "auditRevisions" → save AuditNotification to RavenDB
     [Function(nameof(OnAuditRevision))]
     public async Task OnAuditRevision(
-        [QueueTrigger("auditRevisions", Connection = "SAMPLES_VERITY_AZURE_QUEUE_CONNECTION")] string messageBody)
+        [QueueTrigger("auditRevisions", Connection = "SAMPLES_VERITY_AZURE_STORAGE_CONNECTION_STRING")] string messageBody)
     {
         var opts    = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
         var envelope = JsonSerializer.Deserialize<CloudEventEnvelope<AuditRevisionMessage>>(messageBody, opts);

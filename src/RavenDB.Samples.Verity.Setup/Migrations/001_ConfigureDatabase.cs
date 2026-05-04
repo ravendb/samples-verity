@@ -27,6 +27,11 @@ public sealed class ConfigureDatabase(MigrationContext context) : Migration
         DocumentStore.Maintenance.Server.Send(new ToggleDatabasesStateOperation(DocumentStore.Database, false));
 
         // 1) REMOTE ATTACHMENTS
+        var parsed = context.AzureStorageConnectionString
+            .Split(";", StringSplitOptions.RemoveEmptyEntries)
+            .Select(pair => pair.Split("="))
+            .ToDictionary(pair => pair[0], pair => pair[1]);
+
         var remoteAttachmentsConfig = new RemoteAttachmentsConfiguration
         {
             Destinations = new Dictionary<string, RemoteAttachmentsDestinationConfiguration>
@@ -37,10 +42,9 @@ public sealed class ConfigureDatabase(MigrationContext context) : Migration
                     {
                         AzureSettings = new RemoteAttachmentsAzureSettings
                         {
-                            StorageContainer = context.AzureStorageContainer,
-                            AccountName      = context.AzureAccountName,
-                            AccountKey       = context.AzureAccountKey,
-                            RemoteFolderName = context.AzureRemoteFolderName
+                            StorageContainer = Constants.AzureStorageContainerName,
+                            AccountName      = parsed["AccountName"],
+                            AccountKey       = parsed["AccountKey"],
                         },
                         Disabled = false
                     }

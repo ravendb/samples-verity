@@ -15,5 +15,10 @@ public static class Constants
     /// <summary>
     /// The name of the sink database.
     /// </summary>
-    public const string DatabaseSinkName = "Verity=sink";
+    public const string DatabaseSinkName = "Verity-sink";
+
+    /// <summary>
+    /// The remote attachments container name
+    /// </summary>
+    public const string AzureStorageContainerName = "verity";
 }
