@@ -9,6 +9,7 @@
 
   <ItemGroup>
     <PackageReference Include="CommunityToolkit.Aspire.RavenDB.Client" Version="13.1.1" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.7" />
     <PackageReference Include="OpenTelemetry.Api" Version="1.15.3" />
     <PackageReference Include="RavenDB.Client" Version="7.2.2" />
     <PackageReference Include="Spectre.Console" Version="0.55.2" />
