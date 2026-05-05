@@ -8,19 +8,19 @@ public record ReportNotification(string CompanyName, string AccessionNumber, str
 
 public static class NewReportsSubscription
 {
+    public static string BuildName(string companyName) => $"New-Reports-{companyName}";
+
     public static async Task Create(IDocumentStore store, string companyName, string companyId)
     {
-        var stats = await store.Maintenance.SendAsync(new GetStatisticsOperation());
-
         await store.Subscriptions.CreateAsync(new SubscriptionCreationOptions<Report>
         {
-            Name                              = $"New-Reports-{companyName}",
-            Filter                            = x => x.CompanyId == companyId && x.Summary != null,
-            Projection                        = x => new
+            Name = BuildName(companyName),
+            Filter = x => x.CompanyId == companyId && x.Summary != null,
+            Projection = x => new
             {
-                CompanyName     = x.CompanyId.Split('/').Last(),
+                CompanyName = x.CompanyId.Split('/').Last(),
                 AccessionNumber = x.AccessionNumber,
-                Filing          = $"{x.FormType} for period ended {x.ReportDate}"
+                Filing = $"{x.FormType} for period ended {x.ReportDate}"
             }
         });
     }

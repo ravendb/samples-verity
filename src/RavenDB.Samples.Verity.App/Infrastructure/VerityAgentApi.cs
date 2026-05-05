@@ -221,7 +221,7 @@ public class VerityAgentApi(
         if (company is null)
             return new NotFoundObjectResult($"Company '{report.CompanyId}' not found.");
 
-        var auditId = $"Audits/{company.Name}/{report.Year}/Q{report.Quarter}";
+        var auditId = Audit.BuildId(company, report);
 
         var audit = await session.LoadAsync<Audit>(auditId, req.HttpContext.RequestAborted);
         var isNew = audit is null;

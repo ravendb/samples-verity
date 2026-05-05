@@ -1,6 +1,7 @@
 using Newtonsoft.Json;
 using Raven.Client.Documents;
 using Raven.Client.Documents.Operations.AI.Agents;
+using RavenDB.Samples.Verity.Model;
 
 namespace RavenDB.Samples.Verity.Model.Agents;
 
@@ -50,8 +51,8 @@ Always ask the auditor to confirm before saving.",
                     {
                         Name        = "GetReport",
                         Description = "Retrieve the report metadata and financial summary being audited",
-                        Query       = @"
-from Reports as r
+                        Query       = $@"
+from {Report.Collection} as r
 where id(r) = $reportId
 select r.AccessionNumber, r.ReportDate, r.FormType, r.Year, r.Quarter,
        r.Revenues, r.Expenses, r.AssetsValue, r.ProfitLoss, r.Profitable,
@@ -63,8 +64,8 @@ select r.AccessionNumber, r.ReportDate, r.FormType, r.Year, r.Quarter,
                     {
                         Name        = "GetAuditor",
                         Description = "Retrieve the auditor's name and email from the Users collection",
-                        Query       = @"
-from Users as u
+                        Query       = $@"
+from {User.Collection} as u
 where id(u) = $userId
 select u.Name, u.Surname, u.Email, u.CompanyId",
                         ParametersSampleObject = "{}"
@@ -74,8 +75,8 @@ select u.Name, u.Surname, u.Email, u.CompanyId",
                     {
                         Name        = "GetExistingAudit",
                         Description = "Check whether an audit already exists for this report",
-                        Query       = @"
-from Audits as a
+                        Query       = $@"
+from {Audit.Collection} as a
 where a.ReportId = $reportId
 select a.AuditorName, a.AuditorSurname, a.AuditString",
                         ParametersSampleObject = "{}"
@@ -90,7 +91,7 @@ select a.AuditorName, a.AuditorSurname, a.AuditString",
                         Description = "Save the completed audit for this report. Only call after the auditor explicitly confirms.",
                         ParametersSampleObject = JsonConvert.SerializeObject(new VeritySaveAuditArgs
                         {
-                            ReportId       = "Reports/1-A",
+                            ReportId       = Report.BuildId("ExampleCo", 2025, 1),
                             AuditorName    = "Auditor first name",
                             AuditorSurname = "Auditor last name",
                             AuditorEmail   = "auditor@company.com",

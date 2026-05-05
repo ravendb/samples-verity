@@ -1,7 +1,12 @@
 namespace RavenDB.Samples.Verity.Model;
 
-public class Report
+public class Report : IDocument
 {
+    public static string Collection => "Reports";
+
+    public static string BuildId(string companyName, int year, int quarter)
+        => $"{Collection}/{companyName}/{year}/Q{quarter}";
+
     public string  Id              { get; set; } = null!;
     public string  CompanyId       { get; set; } = null!;
     public string  AccessionNumber { get; set; } = null!;

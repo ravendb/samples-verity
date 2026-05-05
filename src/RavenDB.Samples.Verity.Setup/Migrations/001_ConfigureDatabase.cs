@@ -7,6 +7,7 @@ using Raven.Client.Documents.Operations.Revisions;
 using Raven.Client.ServerWide.Operations;
 using Raven.Client.ServerWide.Operations.Configuration;
 using Raven.Migrations;
+using RavenDB.Samples.Verity.Model;
 using RavenDB.Samples.Verity.Model.Subscriptions;
 
 namespace RavenDB.Samples.Verity.Setup.Migrations;
@@ -71,7 +72,7 @@ public sealed class ConfigureDatabase(MigrationContext context) : Migration
             Collections = new Dictionary<string, RevisionsCollectionConfiguration>
             {
                 {
-                    "Audits", new RevisionsCollectionConfiguration
+                    Audit.Collection, new RevisionsCollectionConfiguration
                     {
                         Disabled      = false,
                         PurgeOnDelete = true

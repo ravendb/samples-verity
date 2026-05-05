@@ -65,7 +65,7 @@ public sealed class ImportCompanies(MigrationContext context) : Migration
             if (fiscalYearStart.Year != 1)
                 fiscalYearStart = fiscalYearStart.AddYears(-1);
 
-            var companyId = $"Companies/{name}";
+            var companyId = Company.BuildId(name);
 
             if (session.Advanced.Exists(companyId))
                 continue;
@@ -93,7 +93,7 @@ public sealed class ImportCompanies(MigrationContext context) : Migration
                 var domain = name.Replace(" ", "").Replace(",", "").Replace(".", "").ToLowerInvariant();
                 session.Store(new User
                 {
-                    Id        = $"Users/{name}/{firstName} {lastName}",
+                    Id        = User.BuildId(name, firstName, lastName),
                     CompanyId = companyId,
                     Name      = firstName,
                     Surname   = lastName,
@@ -111,6 +111,6 @@ public sealed class ImportCompanies(MigrationContext context) : Migration
     {
         DocumentStore.Operations.Send(
             new Raven.Client.Documents.Operations.DeleteByQueryOperation(
-                new Raven.Client.Documents.Queries.IndexQuery { Query = "from Companies" }));
+                new Raven.Client.Documents.Queries.IndexQuery { Query = $"from {Company.Collection}" }));
     }
 }

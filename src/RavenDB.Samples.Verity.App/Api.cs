@@ -231,8 +231,7 @@ public class Api(
         if (company is null)
             return new NotFoundObjectResult($"Company '{report.CompanyId}' not found.");
 
-        // Build the deterministic audit ID: Audits/{CompanyName}/{Year}/Q{Quarter}
-        var auditId = $"Audits/{company.Name}/{report.Year}/Q{report.Quarter}";
+        var auditId = Audit.BuildId(company, report);
 
         // Upsert: update existing audit or create a new one
         var audit = await session.LoadAsync<Audit>(auditId, req.HttpContext.RequestAborted);

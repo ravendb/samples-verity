@@ -117,7 +117,7 @@ internal sealed class SubscriptionWorker(IDocumentStore store, IHostApplicationL
 
         var appeared = new TaskCompletionSource();
         var worker = store.Subscriptions.GetSubscriptionWorker<Company>(
-            new SubscriptionWorkerOptions("Companies-Watch")
+            new SubscriptionWorkerOptions(CompaniesSubscription.Name)
             {
                 Strategy = SubscriptionOpeningStrategy.WaitForFree
             });
@@ -176,7 +176,7 @@ internal sealed class SubscriptionWorker(IDocumentStore store, IHostApplicationL
 
     private async Task RunWorkerAsync(Company company, CancellationToken ct)
     {
-        var subscriptionName = $"New-Reports-{company.Name}";
+        var subscriptionName = NewReportsSubscription.BuildName(company.Name);
         var worker = store.Subscriptions.GetSubscriptionWorker<ReportNotification>(
             new SubscriptionWorkerOptions(subscriptionName)
             {

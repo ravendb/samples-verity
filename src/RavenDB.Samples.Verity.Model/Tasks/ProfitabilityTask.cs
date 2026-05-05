@@ -1,5 +1,6 @@
 using Newtonsoft.Json;
 using Raven.Client.Documents.Operations.AI;
+using RavenDB.Samples.Verity.Model;
 
 namespace RavenDB.Samples.Verity.Model.Tasks;
 
@@ -11,7 +12,7 @@ public class ProfitabilityTask : GenAiConfiguration
         Identifier           = "profitability-analysis";
         ConnectionStringName = connectionName;
         Disabled             = false;
-        Collection           = "Reports";
+        Collection           = Report.Collection;
 
         GenAiTransformation = new GenAiTransformation
         {
@@ -70,7 +71,7 @@ ai.genContext({ CompanyId: this.CompanyId, Id: id(this) })
             Summary      = "Detailed description of the quarter"
         });
 
-        UpdateScript = @"
+        UpdateScript = $@"
 this.Revenues     = $output.Revenues;
 this.Expenses     = $output.Expenses;
 this.AssetsVal    = $output.AssetsVal;
@@ -80,9 +81,9 @@ this.ProfitLoss   = $output.Revenues - $output.Expenses;
 this.Profitable   = $output.Revenues > $output.Expenses;
 this.ChunkAnalyses = null;
 
-for (var i = 1; i <= this.ChunkCount; i++) {
-    del('Part/' + i + '/' + this.AccessionNumber);
-}";
+for (var i = 1; i <= this.ChunkCount; i++) {{
+    del('{ReportPart.Collection}/' + i + '/' + this.AccessionNumber);
+}}";
 
         MaxConcurrency = 8;
     }

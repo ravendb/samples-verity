@@ -1,5 +1,6 @@
 using Raven.Client.Documents.Operations.ETL;
 using Raven.Client.Documents.Operations.ETL.Queue;
+using RavenDB.Samples.Verity.Model;
 
 namespace RavenDB.Samples.Verity.Model.Tasks;
 
@@ -21,7 +22,7 @@ public static class AuditRevisionQueueEtlTask
             new Transformation
             {
                 Name = "PublishAuditRevisions",
-                Collections = ["Audits"],
+                Collections = [Audit.Collection],
                 Script = @"
 var report  = load(this.ReportId);
 var company = load(report.CompanyId);

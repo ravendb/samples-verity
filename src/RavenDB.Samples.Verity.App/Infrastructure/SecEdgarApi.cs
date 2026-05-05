@@ -89,7 +89,7 @@ public class SecEdgarApi(HttpClient http, IDocumentStore store, ILogger<SecEdgar
         using var response = await http.GetAsync(htmUrl, HttpCompletionOption.ResponseHeadersRead, ct);
         response.EnsureSuccessStatusCode();
 
-        var docId = $"Reports/{CompanyName}/{filing.ReportDate.Year}/Q{quarter}";
+        var docId = Report.BuildId(CompanyName, filing.ReportDate.Year, quarter);
 
         using var session = store.OpenAsyncSession();
 
@@ -117,7 +117,7 @@ public class SecEdgarApi(HttpClient http, IDocumentStore store, ILogger<SecEdgar
         var report = new Report
         {
             Id              = docId,
-            CompanyId       = $"Companies/{CompanyName}",
+            CompanyId       = Company.BuildId(CompanyName),
             AccessionNumber = filing.AccessionNumber,
             ReportDate      = filing.ReportDate.ToString("yyyy-MM-dd"),
             FilingDate      = filing.FilingDate.ToString("yyyy-MM-dd"),
@@ -175,7 +175,7 @@ public class SecEdgarApi(HttpClient http, IDocumentStore store, ILogger<SecEdgar
 
             var part = new ReportPart
             {
-                Id              = $"ReportParts/{i}/{filing.AccessionNumber}",
+                Id              = ReportPart.BuildId(i, filing.AccessionNumber),
                 ReportId        = docId,
                 AccessionNumber = filing.AccessionNumber,
                 FormType        = formType,
@@ -253,7 +253,7 @@ public class SecEdgarApi(HttpClient http, IDocumentStore store, ILogger<SecEdgar
 
         var company = new Company
         {
-            Id = $"Companies/{companyName}",
+            Id = Company.BuildId(companyName),
             Name = companyName,
             Cik = paddedCik,
             Sic = root.TryGetProperty("sic", out var sic) ? sic.GetString() : null,
@@ -280,7 +280,7 @@ public class SecEdgarApi(HttpClient http, IDocumentStore store, ILogger<SecEdgar
             var domain = company.Name.Replace(" ", "").Replace(",", "").Replace(".", "").ToLowerInvariant();
             await session.StoreAsync(new User
             {
-                Id = $"Users/{company.Name}/{firstName} {lastName}",
+                Id = User.BuildId(company, firstName, lastName),
                 CompanyId = company.Id,
                 Name = firstName,
                 Surname = lastName,

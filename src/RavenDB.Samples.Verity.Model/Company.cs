@@ -1,7 +1,11 @@
 namespace RavenDB.Samples.Verity.Model;
 
-public class Company
+public class Company : IDocument
 {
+    public static string Collection => "Companies";
+
+    public static string BuildId(string name) => $"{Collection}/{name}";
+
     public string   Id              { get; set; } = null!;
     public string   Name            { get; set; } = null!;
     public string   Cik             { get; set; } = null!;
