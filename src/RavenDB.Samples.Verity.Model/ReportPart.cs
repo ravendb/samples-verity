@@ -7,6 +7,8 @@ public class ReportPart : IDocument
     public static string BuildId(int index, string accessionNumber)
         => $"{Collection}/{index}/{accessionNumber}";
 
+    public const string AttachmentName = "text.htm";
+
     public string  Id              { get; set; } = null!;
     public string  ReportId        { get; set; } = null!;
     public string  AccessionNumber { get; set; } = null!;

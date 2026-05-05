@@ -251,13 +251,6 @@ public static partial class HtmProcessor
         return ChunkHtml(reader.ReadToEnd(), maxCharsPerChunk, boundaryLookahead, minRemainingChars);
     }
 
-    /// <summary>
-    /// Returns the attachment name for a given chunk, e.g.
-    /// <c>form10-k.part01of04.htm</c>.
-    /// </summary>
-    public static string ChunkAttachmentName(string formType, int index, int total)
-        => $"form{formType.ToLower()}.part{index:D2}of{total:D2}.htm";
-
     // ── Helpers ───────────────────────────────────────────────────────────────
 
     // Returns unique, ordered SEC section identifiers found in a chunk of text.

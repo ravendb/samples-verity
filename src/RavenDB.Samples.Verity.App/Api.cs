@@ -15,6 +15,8 @@ using Raven.Client.Documents.Session;
 using System.Reactive.Linq;
 using RavenDB.Samples.Verity.App.Infrastructure;
 using RavenDB.Samples.Verity.Model;
+using RavenDB.Samples.Verity.Setup;
+using RavenDB.Samples.Verity.Model.Tasks;
 using System.Globalization;
 using System.Text;
 using System.Text.Json;
@@ -30,13 +32,12 @@ public class Api(
     SecEdgarApi edgar,
     MigrationRunner migrations)
 {
-    private const string HeaderCommandKey = "X-Command-Key";
 
     // POST /api/migrate
     [Function(nameof(Migrate))]
     public IActionResult Migrate([HttpTrigger("post", Route = "migrate")] HttpRequest req)
     {
-        var actual   = req.Headers[HeaderCommandKey].ToString();
+        var actual   = req.Headers[Constants.HttpHeaders.CommandKey].ToString();
         var expected = config.GetValue<string>(Constants.EnvVars.CommandKey);
 
         if (actual != expected)
@@ -65,7 +66,7 @@ public class Api(
 
         if (!string.IsNullOrWhiteSpace(rawCik))
         {
-            var cik = rawCik.Trim().PadLeft(10, '0');
+            var cik = SecEdgar.NormalizeCik(rawCik);
 
             var company = await session.Query<Company>()
                                        .FirstOrDefaultAsync(c => c.Cik == cik);
@@ -147,7 +148,7 @@ public class Api(
     public async Task<IActionResult> GetCompany(
         [HttpTrigger("get", Route = "company")] HttpRequest req)
     {
-        var cik = req.Query["cik"].ToString().Trim().PadLeft(10, '0');
+        var cik = SecEdgar.NormalizeCik(req.Query["cik"].ToString());
         if (string.IsNullOrWhiteSpace(cik))
             return new BadRequestObjectResult("Provide the 'cik' parameter (e.g., ?cik=320193).");
 
@@ -169,7 +170,7 @@ public class Api(
         if (string.IsNullOrWhiteSpace(cik))
             return new BadRequestObjectResult("Provide the 'cik' parameter (e.g., ?cik=320193).");
 
-        var paddedCik = cik.Trim().PadLeft(10, '0');
+        var paddedCik = SecEdgar.NormalizeCik(cik);
         var existing  = await session.Query<Company>().FirstOrDefaultAsync(c => c.Cik == paddedCik, req.HttpContext.RequestAborted);
         if (existing is not null)
             return new ConflictObjectResult($"Company with CIK {paddedCik} already exists.");
@@ -190,7 +191,7 @@ public class Api(
         if (!int.TryParse(req.Query["max"], out var max) || max < 1)
             max = 5;
 
-        var paddedCik = cik.Trim().PadLeft(10, '0');
+        var paddedCik = SecEdgar.NormalizeCik(cik);
         var company   = await session.Query<Company>().FirstOrDefaultAsync(c => c.Cik == paddedCik)
                         ?? await edgar.FetchAndSaveCompanyAsync(paddedCik, req.HttpContext.RequestAborted);
 
@@ -335,7 +336,7 @@ public class Api(
     // QueueTrigger: "auditRevisions" → save AuditNotification to RavenDB
     [Function(nameof(OnAuditRevision))]
     public async Task OnAuditRevision(
-        [QueueTrigger("auditRevisions", Connection = "SAMPLES_VERITY_AZURE_STORAGE_CONNECTION_STRING")] string messageBody)
+        [QueueTrigger(AuditRevisionQueueEtlTask.QueueName, Connection = Constants.EnvVars.AzureStorageConnectionString)] string messageBody)
     {
         var opts    = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
         var envelope = JsonSerializer.Deserialize<CloudEventEnvelope<AuditRevisionMessage>>(messageBody, opts);

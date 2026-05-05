@@ -12,7 +12,7 @@ public static class AuditRevisionQueueEtlTask
 
     public static QueueEtlConfiguration Create() => new()
     {
-        Name = "AuditRevisionQueue",
+        Name = TaskName,
         ConnectionStringName = ConnectionStringName,
         BrokerType = QueueBrokerType.AzureQueueStorage,
         Disabled = false,

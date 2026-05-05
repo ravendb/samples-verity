@@ -7,6 +7,9 @@ public class Report : IDocument
     public static string BuildId(string companyName, int year, int quarter)
         => $"{Collection}/{companyName}/{year}/Q{quarter}";
 
+    public static string AttachmentName(string formType)
+        => $"form{formType.ToLowerInvariant()}.htm";
+
     public string  Id              { get; set; } = null!;
     public string  CompanyId       { get; set; } = null!;
     public string  AccessionNumber { get; set; } = null!;

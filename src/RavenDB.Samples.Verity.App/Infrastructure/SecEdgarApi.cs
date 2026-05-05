@@ -9,8 +9,6 @@ namespace RavenDB.Samples.Verity.App.Infrastructure;
 
 public class SecEdgarApi(HttpClient http, IDocumentStore store, ILogger<SecEdgarApi> logger)
 {
-    private const string EdgarBase = "https://www.sec.gov";
-    private const string DataBase  = "https://data.sec.gov";
     private string Cik = null!;
     private string CompanyName = null!;
     private DateTime FiscalYearStart = default;
@@ -19,7 +17,7 @@ public class SecEdgarApi(HttpClient http, IDocumentStore store, ILogger<SecEdgar
 
     public async Task<List<EdgarFiling>> GetRecentFilingsAsync(List<string> formType, int maxCount, CancellationToken ct = default)
     {
-        var url = $"{DataBase}/submissions/CIK{Cik}.json";
+        var url = SecEdgar.SubmissionsUrl(Cik);
         using var response = await http.GetAsync(url, ct);
         response.EnsureSuccessStatusCode();
 
@@ -76,7 +74,7 @@ public class SecEdgarApi(HttpClient http, IDocumentStore store, ILogger<SecEdgar
     {
         var accNoDashes = filing.AccessionNumber.Replace("-", "");
         var cikNumeric  = long.Parse(Cik).ToString();
-        var htmUrl      = $"{EdgarBase}/Archives/edgar/data/{cikNumeric}/{accNoDashes}/{filing.PrimaryDocument}";
+        var htmUrl      = $"{SecEdgar.EdgarBase}/Archives/edgar/data/{cikNumeric}/{accNoDashes}/{filing.PrimaryDocument}";
         var quarter     = GetFiscalQuarter(FiscalYearStart.Month, filing.ReportDate.Month);
 
         logger.LogInformation("Downloading {FormType}: {Url}", formType, htmUrl);
@@ -130,7 +128,7 @@ public class SecEdgarApi(HttpClient http, IDocumentStore store, ILogger<SecEdgar
             identifier: Setup.Constants.RemoteAttachmentId, // The remote destination ID you’ve defined
             at: DateTime.UtcNow.AddMinutes(10));
 
-        var storeParameters = new StoreAttachmentParameters($"form{formType}.htm", cleanedStream)
+        var storeParameters = new StoreAttachmentParameters(Report.AttachmentName(formType), cleanedStream)
         {
             RemoteParameters = remoteParameters,
             ContentType = "text/html"
@@ -181,7 +179,7 @@ public class SecEdgarApi(HttpClient http, IDocumentStore store, ILogger<SecEdgar
             await session.StoreAsync(part, part.Id, ct);
 
             var textStream = new MemoryStream(allBytes, start, length, writable: false);
-            session.Advanced.Attachments.Store(part.Id, "text.htm", textStream, "text/html");
+            session.Advanced.Attachments.Store(part.Id, ReportPart.AttachmentName, textStream, "text/html");
         }
         await session.SaveChangesAsync();
     }

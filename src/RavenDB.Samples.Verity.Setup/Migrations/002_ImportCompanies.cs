@@ -29,7 +29,7 @@ public sealed class ImportCompanies(MigrationContext context) : Migration
 
     private async Task RunAsync(HttpClient http)
     {
-        var paddedCiks = Ciks.Select(c => c.Trim().PadLeft(10, '0')).ToArray();
+        var paddedCiks = Ciks.Select(SecEdgar.NormalizeCik).ToArray();
 
         var fetchTasks = paddedCiks.Select(c => SecEdgarCompanyImporter.FetchCompanyDataAsync(http, c));
         var fetched    = await Task.WhenAll(fetchTasks);

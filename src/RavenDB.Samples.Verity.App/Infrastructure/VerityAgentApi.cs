@@ -9,6 +9,7 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using RavenDB.Samples.Verity.Model.Agents;
+using RavenDB.Samples.Verity.Setup;
 
 namespace RavenDB.Samples.Verity.App.Infrastructure;
 
@@ -39,9 +40,9 @@ public class VerityAgentApi(
 
         // Attempt to read the report HTML attachment for the agent to analyse
         var attachmentResult = await session.Advanced.Attachments.GetAsync(
-            reportId, "form10-q.htm", req.HttpContext.RequestAborted)
+            reportId, Report.AttachmentName("10-Q"), req.HttpContext.RequestAborted)
             ?? await session.Advanced.Attachments.GetAsync(
-                reportId, "form10-k.htm", req.HttpContext.RequestAborted);
+                reportId, Report.AttachmentName("10-K"), req.HttpContext.RequestAborted);
 
         string reportText;
         if (attachmentResult is not null)
@@ -116,9 +117,9 @@ public class VerityAgentApi(
 
         // Load HTML attachment, strip tags, truncate to 40k chars
         var attachmentResult = await session.Advanced.Attachments.GetAsync(
-            body.ReportId, "form10-q.htm", req.HttpContext.RequestAborted)
+            body.ReportId, Report.AttachmentName("10-Q"), req.HttpContext.RequestAborted)
             ?? await session.Advanced.Attachments.GetAsync(
-                body.ReportId, "form10-k.htm", req.HttpContext.RequestAborted);
+                body.ReportId, Report.AttachmentName("10-K"), req.HttpContext.RequestAborted);
 
         string reportText;
         if (attachmentResult is not null)

@@ -7,13 +7,16 @@ namespace RavenDB.Samples.Verity.Model.Agents;
 
 public static class VerityAgentCreator
 {
+    public const string AgentName       = "Verity Audit Agent";
+    public const string AgentIdentifier = "verity-audit-agent";
+
     public static Task Create(IDocumentStore store, string connectionName)
     {
         return store.AI.CreateAgentAsync(
             new AiAgentConfiguration
             {
-                Name                 = "Verity Audit Agent",
-                Identifier           = "verity-audit-agent",
+                Name                 = AgentName,
+                Identifier           = AgentIdentifier,
                 ConnectionStringName = connectionName,
                 SystemPrompt         = @"You are a financial audit assistant for SEC quarterly and annual reports.
 

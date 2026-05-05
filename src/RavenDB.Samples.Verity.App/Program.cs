@@ -4,6 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Raven.Migrations;
 using RavenDB.Samples.Verity.App.Infrastructure;
+using RavenDB.Samples.Verity.Setup;
 using RavenDB.Samples.Verity.Setup.Migrations;
 
 var builder = FunctionsApplication.CreateBuilder(args);

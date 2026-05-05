@@ -6,27 +6,30 @@ namespace RavenDB.Samples.Verity.Model.Tasks;
 
 public class ChunkAnalysisTask : GenAiConfiguration
 {
+    public const string TaskName       = "ChunkAnalysis";
+    public const string TaskIdentifier = "chunk-analysis";
+
     public ChunkAnalysisTask(string connectionName)
     {
-        Name                 = "ChunkAnalysis";
-        Identifier           = "chunk-analysis";
+        Name                 = TaskName;
+        Identifier           = TaskIdentifier;
         ConnectionStringName = connectionName;
         Disabled             = false;
         Collection           = ReportPart.Collection;
 
         GenAiTransformation = new GenAiTransformation
         {
-            Script = @"
+            Script = $@"
 if (this.Analysis != null) return;
 
-var text = loadAttachment('text.htm');
+var text = loadAttachment('{ReportPart.AttachmentName}');
 if (!text) return;
 
-ai.genContext({
+ai.genContext({{
     ReportId:   this.ReportId,
     Index:      this.Index,
     Total:      this.Total
-}).withText(text);"
+}}).withText(text);"
         };
 
         Prompt =

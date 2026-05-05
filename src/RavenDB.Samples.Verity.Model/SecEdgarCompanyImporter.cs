@@ -15,8 +15,6 @@ public static class SecEdgarCompanyImporter
         string?  SicDescription,
         DateTime FiscalYearStart);
     
-    private const string DataBase = "https://data.sec.gov";
-
     private static readonly string[] FirstNames =
     [
         "James", "Mary", "Robert", "Patricia", "Michael",
@@ -33,7 +31,7 @@ public static class SecEdgarCompanyImporter
     public static async Task<CompanyImportData> FetchCompanyDataAsync(
         HttpClient http, string paddedCik, CancellationToken ct = default)
     {
-        var url = $"{DataBase}/submissions/CIK{paddedCik}.json";
+        var url = SecEdgar.SubmissionsUrl(paddedCik);
 
         using var response = await http.GetAsync(url, ct);
         response.EnsureSuccessStatusCode();

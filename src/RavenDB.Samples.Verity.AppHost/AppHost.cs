@@ -1,6 +1,7 @@
 using CommunityToolkit.Aspire.Hosting.RavenDB;
 using Projects;
 using RavenDB.Samples.Verity.AppHost;
+using RavenDB.Samples.Verity.Setup;
 
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -8,8 +9,7 @@ var builder = DistributedApplication.CreateBuilder(args);
 var storage = builder.AddAzureStorage("storage").RunAsEmulator();
 
 // Parameters
-const string commandKey = "CommandKey";
-var secretKey = builder.AddParameterWithRandomValue(commandKey, secret: true);
+var secretKey = builder.AddParameterWithRandomValue(Constants.EnvVars.CommandKey, secret: true);
 
 var ravenDbLicense = builder
     .AddParameter("ravendb-license", secret: true)
@@ -38,8 +38,8 @@ var ravenDbServer = builder
     .WithEnvironment("RAVEN_License_Eula_Accepted", "true")
     .WithEnvironment("RAVEN_License", ravenDbLicense);
 
-var db   = ravenDbServer.AddDatabase("Verity");
-var sink = ravenDbServer.AddDatabase("Verity-sink");
+var db   = ravenDbServer.AddDatabase(Constants.DatabaseName);
+var sink = ravenDbServer.AddDatabase(Constants.DatabaseSinkName);
 
 var hubInternalUrl = $"http://host.docker.internal:{settings.Port!.Value}";
 
@@ -54,17 +54,17 @@ var functions = builder.AddAzureFunctionsProject<RavenDB_Samples_Verity_App>("ap
     .WithReference(sink)
     .WaitFor(sink)
 
-    .WithEnvironment("SAMPLES_VERITY_SEC_EDGAR_USER_AGENT", secEdgarUserAgent)
-    .WithEnvironment("SAMPLES_VERITY_OPENAI_API_KEY", openAiApiKey)
+    .WithEnvironment(Constants.EnvVars.SecEdgarUserAgent, secEdgarUserAgent)
+    .WithEnvironment(Constants.EnvVars.OpenAiApiKey, openAiApiKey)
 
     // Azure Storage – Remote Attachments & Queue ETL
-    .WithEnvironment("SAMPLES_VERITY_AZURE_STORAGE_CONNECTION_STRING",  azureStorageConnectionString)
+    .WithEnvironment(Constants.EnvVars.AzureStorageConnectionString, azureStorageConnectionString)
 
     // Hub/Sink Replication
-    .WithEnvironment("SAMPLES_VERITY_SINK_SERVER_URL",         ravenDbServer.GetEndpoint("http"))
-    .WithEnvironment("SAMPLES_VERITY_HUB_SERVER_INTERNAL_URL", hubInternalUrl)
+    .WithEnvironment(Constants.EnvVars.SinkServerUrl,        ravenDbServer.GetEndpoint("http"))
+    .WithEnvironment(Constants.EnvVars.HubServerInternalUrl, hubInternalUrl)
 
-    .WithEnvironment("CommandKey", secretKey)
+    .WithEnvironment(Constants.EnvVars.CommandKey, secretKey)
     .WithHttpCommand(
         path: "/api/migrate",
         displayName: "Migrate DB",
@@ -74,7 +74,7 @@ var functions = builder.AddAzureFunctionsProject<RavenDB_Samples_Verity_App>("ap
             PrepareRequest = async context =>
             {
                 var key = await secretKey.Resource.GetValueAsync(CancellationToken.None);
-                context.Request.Headers.Add("X-Command-Key", key);
+                context.Request.Headers.Add(Constants.HttpHeaders.CommandKey, key);
             },
             IconName = "databaseArrowUp",
             IsHighlighted = true

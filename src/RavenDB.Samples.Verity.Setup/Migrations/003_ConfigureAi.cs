@@ -23,7 +23,7 @@ public sealed class ConfigureAi(MigrationContext context) : Migration
         }));
 
         // AI CONNECTION STRING
-        const string connectionName = "Verity AI Model";
+        const string connectionName = Constants.AiConnectionStringName;
         DocumentStore.Maintenance.Send(new PutConnectionStringOperation<AiConnectionString>(new AiConnectionString
         {
             Name           = connectionName,
