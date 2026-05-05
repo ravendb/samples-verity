@@ -14,6 +14,8 @@ To fully **embed itself into Microsoft Azure ecosystem**, Verity delegates the f
 
 **Built with RavenDB, .NET Aspire, Azure Storage, Azure Functions, AI integration, and a modern frontend.**
 
+<img width="3747" height="1837" alt="image" src="https://github.com/user-attachments/assets/87bcc8c7-3c86-458f-b6f3-033ce40da916" />
+
 
 ## Features used
 
@@ -48,18 +50,15 @@ A few steps are required to run the application locally.
 1. Install prerequisites:
    1. [.NET 10.x](https://dotnet.microsoft.com/en-us/download/dotnet/10.0)
    1. [Node.js 22.x](https://nodejs.org/en/download)
-1. In next steps we will be editing appsettings.json found in (Repository folder)/src/RavenDB.Samples.Verity.App/
-   1. CommandKey: your email
-   1. UserAgent: your nick and email, eg. "UserAgent": "John john@mail.web"
-   1. ApiKey: your OpenAI api key
-   1. AzureStorage: your Azure storage connection string
-   1. RacenDB License: your license which you can get here [RavenDB License](https://ravendb.net/license/request/dev)
+   1. [Aspire](https://aspire.dev)
+1. Use `aspire run` to run the application
+   1. When running for the first time, `Aspire` will ask you to fill some parameters:
+      1. UserAgent: your nick and email, eg. "UserAgent": "John john@mail.web"
+      1. ApiKey: your OpenAI api key
+      1. AzureStorage: your Azure storage connection string
+      1. RacenDB License: your license which you can get here [RavenDB download](https://ravendb.net/download)
 
-## Yor own RavenDB
-
-If you want to try RavenDB yourself there is easy way to do this found [here](https://ravendb.net/download)
-
-## Rmearks
+## Remarks
 
 When adding a company, the user should select U.S. based companies, as foreign companies do not have 10-K and 10-Q reports, which the application focuses on.
 
