@@ -1,13 +1,8 @@
 using Microsoft.Extensions.Logging;
 using Raven.Client.Documents;
 using Raven.Client.Documents.Operations.Attachments;
-using Raven.Client.Documents.Subscriptions;
 using RavenDB.Samples.Verity.Model;
-using RavenDB.Samples.Verity.Model.Subscriptions;
-using Sparrow;
-using System.ComponentModel.Design;
 using System.Globalization;
-using System.Text;
 using System.Text.Json;
 
 namespace RavenDB.Samples.Verity.App.Infrastructure;
@@ -220,76 +215,20 @@ public class SecEdgarApi(HttpClient http, IDocumentStore store, ILogger<SecEdgar
 
     // ── 4. Fetching and saving company data ──────────────────────────────────
 
-    private static readonly string[] FirstNames =
-    [
-        "James", "Mary", "Robert", "Patricia", "Michael",
-            "Jennifer", "William", "Linda", "David", "Barbara"
-    ];
-
-    private static readonly string[] LastNames =
-    [
-        "Smith", "Johnson", "Williams", "Brown", "Jones",
-        "Garcia", "Miller", "Davis", "Wilson", "Martinez"
-    ];
-
     public async Task<Company> FetchAndSaveCompanyAsync(string paddedCik, CancellationToken ct = default)
     {
-        var url = $"{DataBase}/submissions/CIK{paddedCik}.json";
-
-        using var response = await http.GetAsync(url, ct);
-        response.EnsureSuccessStatusCode();
-
-        await using var stream = await response.Content.ReadAsStreamAsync(ct);
-        using var doc  = await JsonDocument.ParseAsync(stream, cancellationToken: ct);
-        var       root = doc.RootElement;
-
-        var companyName = root.GetProperty("name").GetString() ?? paddedCik;
-        var fiscalYearEnd   = root.TryGetProperty("fiscalYearEnd", out var fye) ? fye.GetString() : null;
-        var fiscalYearStart = new DateTime(1, int.Parse(fiscalYearEnd!.Substring(0, 2)), 1, 0, 0, 0, DateTimeKind.Utc);
-        fiscalYearStart     = fiscalYearStart.AddMonths(1);
-
-        if (fiscalYearStart.Year != 1)
-            fiscalYearStart = fiscalYearStart.AddYears(-1);
-
-        var company = new Company
-        {
-            Id = Company.BuildId(companyName),
-            Name = companyName,
-            Cik = paddedCik,
-            Sic = root.TryGetProperty("sic", out var sic) ? sic.GetString() : null,
-            SicDescription = root.TryGetProperty("sicDescription", out var sicDesc) ? sicDesc.GetString() : null,
-            FiscalYearStart = fiscalYearStart,
-        };
-
-        NewReportsSubscription.Create(store, companyName, company.Id).GetAwaiter().GetResult();
+        var data = await SecEdgarCompanyImporter.FetchCompanyDataAsync(http, paddedCik, ct);
 
         using var session = store.OpenAsyncSession();
-        await session.StoreAsync(company, company.Id, ct);
-
-        Random Rng = new(21);
-        var usedPairs = new HashSet<string>();
-        for (var i = 0; i < 2; i++)
-        {
-            string firstName, lastName;
-            do
-            {
-                firstName = FirstNames[Rng.Next(FirstNames.Length)];
-                lastName = LastNames[Rng.Next(LastNames.Length)];
-            } while (!usedPairs.Add($"{firstName} {lastName}"));
-
-            var domain = company.Name.Replace(" ", "").Replace(",", "").Replace(".", "").ToLowerInvariant();
-            await session.StoreAsync(new User
-            {
-                Id = User.BuildId(company, firstName, lastName),
-                CompanyId = company.Id,
-                Name = firstName,
-                Surname = lastName,
-                Email = $"{firstName.ToLower()}{lastName.ToLower()}@{domain}.com"
-            });
-        }
+        var company = await SecEdgarCompanyImporter.StoreCompanyAsync(
+            session, store, data, ct);
         await session.SaveChangesAsync(ct);
 
-        logger.LogInformation("Saved company {Name} (CIK: {Cik})", company.Name, company.Cik);
+        if (logger.IsEnabled(LogLevel.Information))
+        {
+            logger.LogInformation("Saved company {Name} (CIK: {Cik})", company.Name, company.Cik);
+            
+        }
         return company;
     }
 }

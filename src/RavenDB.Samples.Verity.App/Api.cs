@@ -192,7 +192,7 @@ public class Api(
 
         var paddedCik = cik.Trim().PadLeft(10, '0');
         var company   = await session.Query<Company>().FirstOrDefaultAsync(c => c.Cik == paddedCik)
-                        ?? await edgar.FetchAndSaveCompanyAsync(cik, req.HttpContext.RequestAborted);
+                        ?? await edgar.FetchAndSaveCompanyAsync(paddedCik, req.HttpContext.RequestAborted);
 
         await edgar.FetchAndSaveAllFilingsAsync(company, max, req.HttpContext.RequestAborted);
 
