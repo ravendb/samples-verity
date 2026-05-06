@@ -88,7 +88,7 @@ builder.AddExecutable("subscriptions", "cmd", "../RavenDB.Samples.Verity.DataSub
     .WaitFor(sink);
 
 // Frontend
-builder.AddNpmApp("Frontend", "../RavenDB.Samples.Verity.Frontend", "dev")
+var frontend = builder.AddNpmApp("Frontend", "../RavenDB.Samples.Verity.Frontend", "dev")
     .WithReference(functions)
     .WithEnvironment("BROWSER", "none")
     .WithHttpEndpoint(env: "VITE_PORT")
@@ -98,8 +98,7 @@ builder.AddNpmApp("Frontend", "../RavenDB.Samples.Verity.Frontend", "dev")
 var identity = builder.AddProject<RavenDB_Samples_Verity_IdentityServer>("identity")
     .WithExternalHttpEndpoints()
     .WithReference(db)
-    .WaitFor(db)
-    .WithEnvironment("SAMPLES_VERITY_DB_NAME", dbName);
+    .WaitFor(db);
 
 // BFF — single entry point for the browser; proxies API (with tokens) + frontend
 var bff = builder.AddProject<RavenDB_Samples_Verity_Bff>("bff")

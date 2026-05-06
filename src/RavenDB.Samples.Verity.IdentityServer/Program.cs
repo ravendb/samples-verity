@@ -1,6 +1,7 @@
 using Duende.IdentityServer;
 using RavenDB.Samples.Verity.IdentityServer;
 using RavenDB.Samples.Verity.IdentityServer.Endpoints;
+using RavenDB.Samples.Verity.Setup;
 using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -15,8 +16,7 @@ builder.Services.ConfigureHttpJsonOptions(o =>
 var bffBaseUrl = builder.Configuration["Bff:BaseUrl"]
     ?? throw new InvalidOperationException("Missing configuration: Bff:BaseUrl");
 
-var dbName = builder.Configuration["SAMPLES_VERITY_DB_NAME"]
-    ?? throw new InvalidOperationException("Missing configuration: SAMPLES_VERITY_DB_NAME");
+var dbName = Constants.DatabaseName ?? "";
 
 builder.AddRavenDBClient(dbName);
 

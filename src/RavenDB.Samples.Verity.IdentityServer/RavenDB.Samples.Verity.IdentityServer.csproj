@@ -12,12 +12,13 @@
          Run: dotnet add package Duende.IdentityServer  to pull the latest version. -->
     <PackageReference Include="Duende.IdentityServer" Version="7.4.7" />
     <PackageReference Include="CommunityToolkit.Aspire.RavenDB.Client" Version="13.1.1" />
-    <PackageReference Include="RavenDB.Client" Version="7.2.1" />
+    <PackageReference Include="RavenDB.Client" Version="7.2.2" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\RavenDB.Samples.Verity.ServiceDefaults\RavenDB.Samples.Verity.ServiceDefaults.csproj" />
     <ProjectReference Include="..\RavenDB.Samples.Verity.Model\RavenDB.Samples.Verity.Model.csproj" />
+    <ProjectReference Include="..\RavenDB.Samples.Verity.Setup\RavenDB.Samples.Verity.Setup.csproj" />
   </ItemGroup>
 
 </Project>
