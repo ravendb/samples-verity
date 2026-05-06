@@ -46,7 +46,7 @@ public sealed class UserStore(IDocumentStore store)
 
         var user = new User
         {
-            Id           = $"users/{subjectId}",
+            Id           = User.BuildId(subjectId),
             SubjectId    = subjectId,
             Username     = username.ToLowerInvariant(),
             Name         = parts.ElementAtOrDefault(0) ?? username,

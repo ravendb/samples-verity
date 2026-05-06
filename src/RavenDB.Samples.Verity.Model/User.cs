@@ -7,6 +7,9 @@ public class User : IDocument
     public static string BuildId(string companyName, string firstName, string lastName)
         => $"{Collection}/{companyName}/{firstName} {lastName}";
 
+    public static string BuildId(string subjectId)
+        => $"{Collection}/{subjectId}";
+
     public static string BuildId(Company company, string firstName, string lastName)
         => BuildId(company.Name, firstName, lastName);
 
