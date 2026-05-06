@@ -36,6 +36,10 @@ public static class IdentityConfig
             RequirePkce       = true,
             RequireConsent    = false,
 
+            RequirePushedAuthorization = true,
+            RequireRequestObject               = true,
+            RefreshTokenUsage                  = TokenUsage.OneTimeOnly,
+
             RedirectUris           = { $"{bffBaseUrl}/signin-oidc" },
             FrontChannelLogoutUri  = $"{bffBaseUrl}/signout-oidc",
             PostLogoutRedirectUris = { $"{bffBaseUrl}/signout-callback-oidc" },
@@ -48,7 +52,6 @@ public static class IdentityConfig
             AlwaysIncludeUserClaimsInIdToken = true,
 
             AccessTokenLifetime = 3600,
-            RefreshTokenUsage   = TokenUsage.ReUse,
         },
     ];
 }

@@ -21,4 +21,8 @@
     <ProjectReference Include="..\RavenDB.Samples.Verity.Setup\RavenDB.Samples.Verity.Setup.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="keys\" />
+  </ItemGroup>
+
 </Project>

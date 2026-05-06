@@ -1,4 +1,8 @@
+using Duende.Bff.AccessTokenManagement;
 using Duende.Bff;
+using Microsoft.IdentityModel.Tokens;
+using System.Security.Cryptography;
+using System.Text.Json;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.AspNetCore.DataProtection;
@@ -17,7 +21,15 @@ var frontendUrl = builder.Configuration["Frontend:Url"]
     ?? throw new InvalidOperationException("Missing configuration: Frontend:Url");
 
 // ─── Duende BFF (session + management endpoints) ─────────────────────────────
-builder.Services.AddBff();
+// Generate RSA key for DPoP
+var rsaKey = new RsaSecurityKey(RSA.Create(2048));
+var jwk = JsonWebKeyConverter.ConvertFromSecurityKey(rsaKey);
+jwk.Alg = SecurityAlgorithms.RsaSsaPssSha256;
+
+builder.Services.AddBff(options =>
+{
+    options.DPoPJsonWebKey = DPoPProofKey.Parse(JsonSerializer.Serialize(jwk));
+});
 
 // ─── Authentication ───────────────────────────────────────────────────────────
 builder.Services
@@ -42,6 +54,7 @@ builder.Services
         options.ResponseMode                  = "query";
         options.RequireHttpsMetadata          = false;
         options.GetClaimsFromUserInfoEndpoint = true;
+        options.PushedAuthorizationBehavior   = PushedAuthorizationBehavior.Require;
         options.MapInboundClaims              = false;
         options.SaveTokens                    = true;
 

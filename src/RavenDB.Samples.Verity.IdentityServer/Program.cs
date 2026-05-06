@@ -1,4 +1,6 @@
 using Duende.IdentityServer;
+using Duende.IdentityServer.Configuration;
+using Microsoft.IdentityModel.Tokens;
 using RavenDB.Samples.Verity.IdentityServer;
 using RavenDB.Samples.Verity.IdentityServer.Endpoints;
 using RavenDB.Samples.Verity.Setup;
@@ -39,11 +41,47 @@ builder.Services.Configure<CookiePolicyOptions>(options =>
 });
 
 builder.Services
-    .AddIdentityServer(options =>
+    .AddIdentityServer(opt =>
     {
-        options.Events.RaiseErrorEvents   = true;
-        options.Events.RaiseFailureEvents = true;
-        options.Events.RaiseSuccessEvents = true;
+        opt.Events.RaiseErrorEvents   = true;
+        opt.Events.RaiseFailureEvents = true;
+        opt.Events.RaiseSuccessEvents = true;
+        if (builder.Environment.IsProduction())
+        {
+            opt.KeyManagement.KeyPath = "/tmp/keys";
+        }
+        opt.KeyManagement.SigningAlgorithms.Add(new SigningAlgorithmOptions(SecurityAlgorithms.RsaSsaPssSha256));
+
+        opt.DPoP.SupportedDPoPSigningAlgorithms = [
+            SecurityAlgorithms.RsaSsaPssSha256,
+        SecurityAlgorithms.RsaSsaPssSha384,
+        SecurityAlgorithms.RsaSsaPssSha512,
+
+        SecurityAlgorithms.EcdsaSha256,
+        SecurityAlgorithms.EcdsaSha384,
+        SecurityAlgorithms.EcdsaSha512
+        ];
+        opt.SupportedClientAssertionSigningAlgorithms = [
+            SecurityAlgorithms.RsaSsaPssSha256,
+        SecurityAlgorithms.RsaSsaPssSha384,
+        SecurityAlgorithms.RsaSsaPssSha512,
+
+        SecurityAlgorithms.EcdsaSha256,
+        SecurityAlgorithms.EcdsaSha384,
+        SecurityAlgorithms.EcdsaSha512
+        ];
+        opt.SupportedRequestObjectSigningAlgorithms = [
+            SecurityAlgorithms.RsaSsaPssSha256,
+        SecurityAlgorithms.RsaSsaPssSha384,
+        SecurityAlgorithms.RsaSsaPssSha512,
+
+        SecurityAlgorithms.EcdsaSha256,
+        SecurityAlgorithms.EcdsaSha384,
+        SecurityAlgorithms.EcdsaSha512
+        ];
+        opt.JwtValidationClockSkew = TimeSpan.FromSeconds(10);
+
+
     })
     .AddInMemoryIdentityResources(IdentityConfig.IdentityResources)
     .AddInMemoryApiScopes(IdentityConfig.ApiScopes)
