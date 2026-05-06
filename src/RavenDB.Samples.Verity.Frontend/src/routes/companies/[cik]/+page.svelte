@@ -8,9 +8,6 @@
   import { authModal } from '$lib/stores/authModal';
   import AuthBar from '$lib/components/AuthBar.svelte';
   import { lastUpdatedReportId } from '$lib/stores/liveUpdates';
-  import { getUser, type UserInfo } from '$lib/auth';
-  import { authModal } from '$lib/stores/authModal';
-  import AuthBar from '$lib/components/AuthBar.svelte';
 
   const cik = decodeURIComponent($page.params.cik);
 

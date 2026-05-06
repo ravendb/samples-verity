@@ -8,7 +8,6 @@
   import AuditDiff from '$lib/components/AuditDiff.svelte';
   import AuthBar from '$lib/components/AuthBar.svelte';
   import { lastUpdatedReportId } from '$lib/stores/liveUpdates';
-  import AuthBar from '$lib/components/AuthBar.svelte';
 
   const accession = decodeURIComponent($page.params.accession);
 

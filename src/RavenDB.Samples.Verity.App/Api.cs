@@ -64,37 +64,6 @@ public class Api(
         catch { return []; }
     }
 
-    private static string? GetSubjectFromBearer(HttpRequest req)
-    {
-        var claims = DecodeJwtClaims(req);
-        return claims.GetValueOrDefault("sub");
-    }
-
-    // Decodes the JWT payload without signature validation.
-    // The BFF has already validated the token; we only need the claims.
-    private static Dictionary<string, string> DecodeJwtClaims(HttpRequest req)
-    {
-        var auth = req.Headers.Authorization.ToString();
-        if (!auth.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
-            return [];
-
-        var parts = auth["Bearer ".Length..].Split('.');
-        if (parts.Length < 2) return [];
-
-        var padded = parts[1].Replace('-', '+').Replace('_', '/');
-        padded += (padded.Length % 4) switch { 2 => "==", 3 => "=", _ => "" };
-
-        try
-        {
-            var json = Encoding.UTF8.GetString(Convert.FromBase64String(padded));
-            using var doc = JsonDocument.Parse(json);
-            return doc.RootElement.EnumerateObject()
-                .Where(p => p.Value.ValueKind == JsonValueKind.String)
-                .ToDictionary(p => p.Name, p => p.Value.GetString()!);
-        }
-        catch { return []; }
-    }
-
     // POST /api/migrate
     [Function(nameof(Migrate))]
     public IActionResult Migrate([HttpTrigger("post", Route = "migrate")] HttpRequest req)
