@@ -87,9 +87,8 @@ builder.AddExecutable("subscriptions", "cmd", "../RavenDB.Samples.Verity.DataSub
     .WithReference(sink)
     .WaitFor(sink);
 
-// Frontend
+// Frontend (Vite dev server — internal; BFF is the external entry point)
 var frontend = builder.AddNpmApp("Frontend", "../RavenDB.Samples.Verity.Frontend", "dev")
-    .WithReference(functions)
     .WithEnvironment("BROWSER", "none")
     .WithHttpEndpoint(env: "VITE_PORT")
     .PublishAsDockerFile();
