@@ -9,7 +9,8 @@ export interface PagedResult<T> {
 	totalPages: number;
 }
 
-export const API_BASE_URL: string = _BASE_API_HTTP_ ?? '';
+// API calls use relative paths — BFF proxies them to Azure Functions.
+export const API_BASE_URL: string = '';
 
 export function apiUrl(path: string): string {
 	const base = API_BASE_URL.endsWith('/')

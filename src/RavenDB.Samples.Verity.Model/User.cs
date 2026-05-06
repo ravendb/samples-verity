@@ -7,6 +7,9 @@ public class User : IDocument
     public static string BuildId(string companyName, string firstName, string lastName)
         => $"{Collection}/{companyName}/{firstName} {lastName}";
 
+    public static string BuildId(string subjectId)
+        => $"{Collection}/{subjectId}";
+
     public static string BuildId(Company company, string firstName, string lastName)
         => BuildId(company.Name, firstName, lastName);
 
@@ -15,4 +18,8 @@ public class User : IDocument
     public string Name      { get; set; } = null!;
     public string Surname   { get; set; } = null!;
     public string Email     { get; set; } = null!;
+    public string SubjectId { get; set; } = null!; // IS subject (sub claim)
+    public string Username  { get; set; } = null!; // login name, lowercase
+    public string PasswordHash { get; set; } = string.Empty;
+    public UserRole Role    { get; set; } = UserRole.User;
 }

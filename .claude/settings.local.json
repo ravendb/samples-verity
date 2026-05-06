@@ -17,6 +17,8 @@
       "WebFetch(domain:api.github.com)",
       "WebSearch",
       "PowerShell(Get-ChildItem *)"
+      "Bash(npm run *)",
+      "Bash(powershell -Command \"\\(Get-Content 'C:\\\\Users\\\\Vienias\\\\source\\\\repos\\\\samples-verity-identity\\\\src\\\\RavenDB.Samples.Verity.Frontend\\\\src\\\\routes\\\\login\\\\+page.svelte'\\) -replace '\\\\s+autofocus', '' | Set-Content 'C:\\\\Users\\\\Vienias\\\\source\\\\repos\\\\samples-verity-identity\\\\src\\\\RavenDB.Samples.Verity.Frontend\\\\src\\\\routes\\\\login\\\\+page.svelte' -Encoding utf8\")"
     ]
   }
 }

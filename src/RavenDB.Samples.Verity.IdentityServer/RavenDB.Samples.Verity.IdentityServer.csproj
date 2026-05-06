@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Duende.IdentityServer 7.x targets net8/net9 but works on net10 via forward-compat.
+         Run: dotnet add package Duende.IdentityServer  to pull the latest version. -->
+    <PackageReference Include="Duende.IdentityServer" Version="7.4.7" />
+    <PackageReference Include="CommunityToolkit.Aspire.RavenDB.Client" Version="13.1.1" />
+    <PackageReference Include="RavenDB.Client" Version="7.2.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\RavenDB.Samples.Verity.ServiceDefaults\RavenDB.Samples.Verity.ServiceDefaults.csproj" />
+    <ProjectReference Include="..\RavenDB.Samples.Verity.Model\RavenDB.Samples.Verity.Model.csproj" />
+    <ProjectReference Include="..\RavenDB.Samples.Verity.Setup\RavenDB.Samples.Verity.Setup.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="keys\" />
+  </ItemGroup>
+
+</Project>

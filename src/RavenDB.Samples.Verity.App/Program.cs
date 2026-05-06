@@ -11,7 +11,7 @@ var builder = FunctionsApplication.CreateBuilder(args);
 
 builder.AddDefaultHealthChecks();
 
-builder.AddRavenDBClient(RavenDB.Samples.Verity.Setup.Constants.DatabaseName, settings =>
+builder.AddRavenDBClient(Constants.DatabaseName, settings =>
 {
     settings.CreateDatabase = true;
 });
