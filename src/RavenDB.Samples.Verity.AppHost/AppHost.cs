@@ -41,7 +41,7 @@ var ravenDbServer = builder
 var db   = ravenDbServer.AddDatabase(Constants.DatabaseName);
 var sink = ravenDbServer.AddDatabase(Constants.DatabaseSinkName);
 
-var hubInternalUrl = $"http://host.docker.internal:{settings.Port!.Value}";
+var ravenHttp = ravenDbServer.GetEndpoint("http");
 
 // Verity App
 var functions = builder.AddAzureFunctionsProject<RavenDB_Samples_Verity_App>("app")
@@ -61,8 +61,14 @@ var functions = builder.AddAzureFunctionsProject<RavenDB_Samples_Verity_App>("ap
     .WithEnvironment(Constants.EnvVars.AzureStorageConnectionString, azureStorageConnectionString)
 
     // Hub/Sink Replication
-    .WithEnvironment(Constants.EnvVars.SinkServerUrl,        ravenDbServer.GetEndpoint("http"))
-    .WithEnvironment(Constants.EnvVars.HubServerInternalUrl, hubInternalUrl)
+    // SinkServerUrl: how the host-resident App reaches the RavenDB server.
+    .WithEnvironment(Constants.EnvVars.SinkServerUrl, ravenHttp)
+    // HubServerInternalUrl: how the Sink (inside the RavenDB container) reaches the Hub.
+    // Hub and Sink share the same RavenDB container, so the Hub is reachable at the
+    // container's own loopback on the target port (8080 for unsecured RavenDB).
+    .WithEnvironment(
+        Constants.EnvVars.HubServerInternalUrl,
+        ReferenceExpression.Create($"http://localhost:{ravenHttp.Property(EndpointProperty.TargetPort)}"))
 
     .WithEnvironment(Constants.EnvVars.CommandKey, secretKey)
     .WithHttpCommand(
