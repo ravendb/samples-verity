@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onMount, untrack } from 'svelte';
   import { page } from '$app/stores';
   import { getReport, type Report } from '$lib/services/reports';
   import { generateAuditDraft, getAuditRevisions, restoreAuditRevision, saveAudit, type Audit, type AuditRevision } from '$lib/services/audit';
@@ -145,7 +145,7 @@
 
   $effect(() => {
     const updatedId = $lastUpdatedReportId;
-    if (updatedId && report && updatedId === report.id) {
+    if (updatedId && untrack(() => report && updatedId === report.id)) {
       getReport(accession).then(r => { report = r; });
     }
   });

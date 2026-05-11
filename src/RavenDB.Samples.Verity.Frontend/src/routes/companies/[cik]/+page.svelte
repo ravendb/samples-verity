@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onMount, untrack } from 'svelte';
   import { page } from '$app/stores';
   import { goto } from '$app/navigation';
   import { getReportsByCik, fetch10Q, type Report } from '$lib/services/reports';
@@ -25,7 +25,7 @@
 
   $effect(() => {
     const updatedId = $lastUpdatedReportId;
-    if (updatedId && reports.some(r => r.id === updatedId)) {
+    if (updatedId && untrack(() => reports.some(r => r.id === updatedId))) {
       getReportsByCik(cik).then(r => { reports = r; });
     }
   });
