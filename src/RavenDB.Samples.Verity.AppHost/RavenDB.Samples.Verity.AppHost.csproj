@@ -23,7 +23,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\RavenDB.Samples.Verity.App\RavenDB.Samples.Verity.App.csproj" />
-    <ProjectReference Include="..\RavenDB.Samples.Verity.Setup\RavenDB.Samples.Verity.Setup.csproj" IsAspireProjectResource="false" />
+    <ProjectReference Include="..\RavenDB.Samples.Verity.Setup\RavenDB.Samples.Verity.Setup.csproj" />
   </ItemGroup>
 
 </Project>

@@ -1,7 +1,13 @@
 using CommunityToolkit.Aspire.Hosting.RavenDB;
 using Projects;
 using RavenDB.Samples.Verity.AppHost;
-using RavenDB.Samples.Verity.Setup;
+
+// Env var names must match Constants.EnvVars in RavenDB.Samples.Verity.Setup
+const string envOpenAiApiKey                = "SAMPLES_VERITY_OPENAI_API_KEY";
+const string envSecEdgarUserAgent           = "SAMPLES_VERITY_SEC_EDGAR_USER_AGENT";
+const string envAzureStorageConnectionString = "SAMPLES_VERITY_AZURE_STORAGE_CONNECTION_STRING";
+const string envSinkServerUrl               = "SAMPLES_VERITY_SINK_SERVER_URL";
+const string envHubServerInternalUrl        = "SAMPLES_VERITY_HUB_SERVER_INTERNAL_URL";
 
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -9,8 +15,6 @@ var builder = DistributedApplication.CreateBuilder(args);
 var storage = builder.AddAzureStorage("storage").RunAsEmulator();
 
 // Parameters
-var secretKey = builder.AddParameterWithRandomValue(Constants.EnvVars.CommandKey, secret: true);
-
 var ravenDbLicense = builder
     .AddParameter("ravendb-license", secret: true)
     .WithDescription("Your Developer license formatted as JSON.");
@@ -38,10 +42,22 @@ var ravenDbServer = builder
     .WithEnvironment("RAVEN_License_Eula_Accepted", "true")
     .WithEnvironment("RAVEN_License", ravenDbLicense);
 
-var db   = ravenDbServer.AddDatabase(Constants.DatabaseName);
-var sink = ravenDbServer.AddDatabase(Constants.DatabaseSinkName);
+var db   = ravenDbServer.AddDatabase("Verity");
+var sink = ravenDbServer.AddDatabase("Verity-sink");
 
 var ravenHttp = ravenDbServer.GetEndpoint("http");
+
+// Seeder — runs all migrations then exits 0; gates the backend and subscriptions TUI
+var seeder = builder.AddProject<RavenDB_Samples_Verity_Setup>("seeder")
+    .WithReference(db).WaitFor(db)
+    .WithReference(sink).WaitFor(sink)
+    .WithEnvironment(envSecEdgarUserAgent, secEdgarUserAgent)
+    .WithEnvironment(envOpenAiApiKey, openAiApiKey)
+    .WithEnvironment(envAzureStorageConnectionString, azureStorageConnectionString)
+    .WithEnvironment(envSinkServerUrl, ravenHttp)
+    .WithEnvironment(
+        envHubServerInternalUrl,
+        ReferenceExpression.Create($"http://localhost:{ravenHttp.Property(EndpointProperty.TargetPort)}"));
 
 // Verity App
 var functions = builder.AddAzureFunctionsProject<RavenDB_Samples_Verity_App>("app")
@@ -54,44 +70,31 @@ var functions = builder.AddAzureFunctionsProject<RavenDB_Samples_Verity_App>("ap
     .WithReference(sink)
     .WaitFor(sink)
 
-    .WithEnvironment(Constants.EnvVars.SecEdgarUserAgent, secEdgarUserAgent)
-    .WithEnvironment(Constants.EnvVars.OpenAiApiKey, openAiApiKey)
+    .WaitForCompletion(seeder)
+
+    .WithEnvironment(envSecEdgarUserAgent, secEdgarUserAgent)
+    .WithEnvironment(envOpenAiApiKey, openAiApiKey)
 
     // Azure Storage – Remote Attachments & Queue ETL
-    .WithEnvironment(Constants.EnvVars.AzureStorageConnectionString, azureStorageConnectionString)
+    .WithEnvironment(envAzureStorageConnectionString, azureStorageConnectionString)
 
     // Hub/Sink Replication
     // SinkServerUrl: how the host-resident App reaches the RavenDB server.
-    .WithEnvironment(Constants.EnvVars.SinkServerUrl, ravenHttp)
+    .WithEnvironment(envSinkServerUrl, ravenHttp)
     // HubServerInternalUrl: how the Sink (inside the RavenDB container) reaches the Hub.
     // Hub and Sink share the same RavenDB container, so the Hub is reachable at the
     // container's own loopback on the target port (8080 for unsecured RavenDB).
     .WithEnvironment(
-        Constants.EnvVars.HubServerInternalUrl,
-        ReferenceExpression.Create($"http://localhost:{ravenHttp.Property(EndpointProperty.TargetPort)}"))
-
-    .WithEnvironment(Constants.EnvVars.CommandKey, secretKey)
-    .WithHttpCommand(
-        path: "/api/migrate",
-        displayName: "Migrate DB",
-        commandOptions: new HttpCommandOptions
-        {
-            Description = "Runs database migrations",
-            PrepareRequest = async context =>
-            {
-                var key = await secretKey.Resource.GetValueAsync(CancellationToken.None);
-                context.Request.Headers.Add(Constants.HttpHeaders.CommandKey, key);
-            },
-            IconName = "databaseArrowUp",
-            IsHighlighted = true
-        });
+        envHubServerInternalUrl,
+        ReferenceExpression.Create($"http://localhost:{ravenHttp.Property(EndpointProperty.TargetPort)}"));
 
 // DataSubscriptionsApp — interactive Spectre.Console TUI, must run in its own console window
 // cmd /c start spawns a detached window so Aspire doesn't capture stdin/stdout
 builder.AddExecutable("subscriptions", "cmd", "../RavenDB.Samples.Verity.DataSubscriptionsApp",
         "/c", "start", "Verity Subscriptions", "cmd", "/k", "dotnet run")
     .WithReference(sink)
-    .WaitFor(sink);
+    .WaitFor(sink)
+    .WaitForCompletion(seeder);
 
 // Frontend
 builder.AddNpmApp("Frontend", "../RavenDB.Samples.Verity.Frontend", "dev")

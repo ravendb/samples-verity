@@ -1,8 +1,6 @@
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Azure.Functions.Worker;
-using Microsoft.Extensions.Configuration;
-using Raven.Migrations;
 using Raven.Client.Documents;
 using Raven.Client.Documents.AI;
 using Raven.Client.Documents.Changes;
@@ -28,26 +26,8 @@ namespace RavenDB.Samples.Verity.App;
 public class Api(
     IAsyncDocumentSession session,
     IDocumentStore store,
-    IConfiguration config,
-    SecEdgarApi edgar,
-    MigrationRunner migrations)
+    SecEdgarApi edgar)
 {
-
-    // POST /api/migrate
-    [Function(nameof(Migrate))]
-    public IActionResult Migrate([HttpTrigger("post", Route = "migrate")] HttpRequest req)
-    {
-        var actual   = req.Headers[Constants.HttpHeaders.CommandKey].ToString();
-        var expected = config.GetValue<string>(Constants.EnvVars.CommandKey);
-
-        if (actual != expected)
-            return new StatusCodeResult(StatusCodes.Status403Forbidden);
-
-        migrations.Run();
-
-        return new StatusCodeResult(StatusCodes.Status202Accepted);
-    }
-
 
     // OPTIONS * — CORS preflight handler
     [Function(nameof(CorsPreflightHandler))]
