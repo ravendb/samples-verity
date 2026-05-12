@@ -56,7 +56,7 @@ A few steps are required to run the application locally.
       1. UserAgent: your nick and email, eg. "UserAgent": "John john@mail.web"
       1. ApiKey: your OpenAI api key
       1. AzureStorage: your Azure storage connection string
-      1. RacenDB License: your license which you can get here [RavenDB download](https://ravendb.net/download)
+      1. RavenDB License: your license which you can get here [RavenDB download](https://ravendb.net/download)
 
 ## Remarks
 
