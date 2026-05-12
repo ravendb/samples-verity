@@ -51,6 +51,7 @@ A few steps are required to run the application locally.
    1. [.NET 10.x](https://dotnet.microsoft.com/en-us/download/dotnet/10.0)
    1. [Node.js 22.x](https://nodejs.org/en/download)
    1. [Aspire](https://aspire.dev)
+   1. [Azure Functions CLI](https://learn.microsoft.com/en-us/azure/azure-functions/functions-run-local)
 1. Use `aspire run` to run the application
    1. When running for the first time, `Aspire` will ask you to fill some parameters:
       1. UserAgent: your nick and email, eg. "UserAgent": "John john@mail.web"
