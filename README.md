@@ -48,6 +48,7 @@ A few steps are required to run the application locally.
 
 1. Check out the GIT repository
 1. Install prerequisites:
+   1. [Docker](https://docs.docker.com/engine/install)
    1. [.NET 10.x](https://dotnet.microsoft.com/en-us/download/dotnet/10.0)
    1. [Node.js 22.x](https://nodejs.org/en/download)
    1. [Aspire](https://aspire.dev)
