@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Azure.Functions.Worker;
@@ -68,7 +69,7 @@ public class Api(
     [Function(nameof(Migrate))]
     public IActionResult Migrate([HttpTrigger("post", Route = "migrate")] HttpRequest req)
     {
-        var actual   = req.Headers[Constants.HttpHeaders.CommandKey].ToString();
+        var actual = req.Headers[Constants.HttpHeaders.CommandKey].ToString();
         var expected = config.GetValue<string>(Constants.EnvVars.CommandKey);
 
         if (actual != expected)
@@ -116,6 +117,24 @@ public class Api(
         return new NotFoundObjectResult($"No CIK number provided");
     }
 
+    [Function(nameof(GetEvents))]
+    public async Task<IActionResult> GetEvents([HttpTrigger("get", Route = "security/events")] HttpRequest req)
+    {
+        var page = int.TryParse(req.Query["page"], out var p) && p > 0 ? p : 1;
+        var pageSize = int.TryParse(req.Query["pageSize"], out var ps) && ps > 0 ? Math.Min(ps, 50) : 20;
+        var skip = (page - 1) * pageSize;
+
+        var events = await session.Query<SecurityEvent>()
+                                  .Statistics(out var stats)
+                                  .OrderByDescending(e => e.At)
+                                  .Skip(skip)
+                                  .Take(pageSize)
+                                  .ToListAsync();
+
+        var totalPages = (int)Math.Ceiling(stats.TotalResults / (double)pageSize);
+        return new JsonResult(new PagedResult<SecurityEvent>(events, page, pageSize, totalPages));
+    }
+
     // GET /api/report?accession=0000320193-24-000123
     [Function(nameof(GetReport))]
     public async Task<IActionResult> GetReport(
@@ -139,9 +158,9 @@ public class Api(
     public async Task<IActionResult> GetCompanies(
         [HttpTrigger("get", Route = "companies")] HttpRequest req)
     {
-        var page     = int.TryParse(req.Query["page"],     out var p)  && p  > 0 ? p  : 1;
+        var page = int.TryParse(req.Query["page"], out var p) && p > 0 ? p : 1;
         var pageSize = int.TryParse(req.Query["pageSize"], out var ps) && ps > 0 ? Math.Min(ps, 100) : 20;
-        var skip     = (page - 1) * pageSize;
+        var skip = (page - 1) * pageSize;
 
         var companies = await session.Query<Company>()
                                      .Statistics(out var stats)
@@ -151,7 +170,7 @@ public class Api(
                                      .Take(pageSize)
                                      .ToListAsync();
 
-        var total      = stats.TotalResults;
+        var total = stats.TotalResults;
         var totalPages = (int)Math.Ceiling(total / (double)pageSize);
         return new JsonResult(new PagedResult<Company>(companies, page, pageSize, totalPages));
     }
@@ -175,6 +194,7 @@ public class Api(
     }
 
     // GET /api/users/me — returns the authenticated user's profile, creating it on first login.
+    [Authorize]
     [Function(nameof(GetMe))]
     public async Task<IActionResult> GetMe(
         [HttpTrigger("get", Route = "users/me")] HttpRequest req)
@@ -183,24 +203,24 @@ public class Api(
         if (sub is null)
             return new UnauthorizedResult();
 
-        var id   = $"users/{sub}";
+        var id = $"users/{sub}";
         var user = await session.LoadAsync<User>(id, req.HttpContext.RequestAborted);
 
         if (user is null)
         {
-            var claims     = DecodeJwtClaims(req);
-            var fullName   = claims.GetValueOrDefault("name", "");
-            var parts      = fullName.Split(' ', 2, StringSplitOptions.RemoveEmptyEntries);
+            var claims = DecodeJwtClaims(req);
+            var fullName = claims.GetValueOrDefault("name", "");
+            var parts = fullName.Split(' ', 2, StringSplitOptions.RemoveEmptyEntries);
             var roleString = claims.GetValueOrDefault("role", "User");
 
             user = new User
             {
-                Id        = id,
+                Id = id,
                 SubjectId = sub,
-                Name      = parts.ElementAtOrDefault(0) ?? fullName,
-                Surname   = parts.ElementAtOrDefault(1) ?? "",
-                Email     = claims.GetValueOrDefault("email", ""),
-                Role      = Enum.TryParse<UserRole>(roleString, out var r) ? r : UserRole.User,
+                Name = parts.ElementAtOrDefault(0) ?? fullName,
+                Surname = parts.ElementAtOrDefault(1) ?? "",
+                Email = claims.GetValueOrDefault("email", ""),
+                Role = Enum.TryParse<UserRole>(roleString, out var r) ? r : UserRole.User,
                 CompanyId = claims.GetValueOrDefault("company_id"),
             };
 
@@ -212,6 +232,7 @@ public class Api(
     }
 
     // PUT /api/users/me — update display name fields.
+    [Authorize]
     [Function(nameof(UpdateMe))]
     public async Task<IActionResult> UpdateMe(
         [HttpTrigger("put", Route = "users/me")] HttpRequest req)
@@ -224,12 +245,12 @@ public class Api(
         if (dto is null)
             return new BadRequestObjectResult("Invalid request body.");
 
-        var id   = $"users/{sub}";
+        var id = $"users/{sub}";
         var user = await session.LoadAsync<User>(id, req.HttpContext.RequestAborted);
         if (user is null)
             return new NotFoundObjectResult("User profile not found. Call GET /api/users/me first.");
 
-        if (!string.IsNullOrWhiteSpace(dto.Name))    user.Name    = dto.Name.Trim();
+        if (!string.IsNullOrWhiteSpace(dto.Name)) user.Name = dto.Name.Trim();
         if (!string.IsNullOrWhiteSpace(dto.Surname)) user.Surname = dto.Surname.Trim();
 
         await session.SaveChangesAsync(req.HttpContext.RequestAborted);
@@ -255,6 +276,7 @@ public class Api(
     }
 
     // POST /api/company?cik=320193
+    [Authorize]
     [Function(nameof(SaveCompany))]
     public async Task<IActionResult> SaveCompany(
         [HttpTrigger("post", Route = "company")] HttpRequest req)
@@ -264,7 +286,7 @@ public class Api(
             return new BadRequestObjectResult("Provide the 'cik' parameter (e.g., ?cik=320193).");
 
         var paddedCik = SecEdgar.NormalizeCik(cik);
-        var existing  = await session.Query<Company>().FirstOrDefaultAsync(c => c.Cik == paddedCik, req.HttpContext.RequestAborted);
+        var existing = await session.Query<Company>().FirstOrDefaultAsync(c => c.Cik == paddedCik, req.HttpContext.RequestAborted);
         if (existing is not null)
             return new ConflictObjectResult($"Company with CIK {paddedCik} already exists.");
 
@@ -273,6 +295,7 @@ public class Api(
     }
 
     // POST /api/fetch-10q?cik=320193&max=5
+    [Authorize]
     [Function(nameof(Fetch10Q))]
     public async Task<IActionResult> Fetch10Q(
         [HttpTrigger("post", Route = "fetch-10q")] HttpRequest req)
@@ -285,7 +308,7 @@ public class Api(
             max = 5;
 
         var paddedCik = SecEdgar.NormalizeCik(cik);
-        var company   = await session.Query<Company>().FirstOrDefaultAsync(c => c.Cik == paddedCik)
+        var company = await session.Query<Company>().FirstOrDefaultAsync(c => c.Cik == paddedCik)
                         ?? await edgar.FetchAndSaveCompanyAsync(paddedCik, req.HttpContext.RequestAborted);
 
         await edgar.FetchAndSaveAllFilingsAsync(company, max, req.HttpContext.RequestAborted);
@@ -295,6 +318,7 @@ public class Api(
 
     // POST /api/audit  — creates an audit for a given report
     // Body (JSON): { reportId, auditorName, auditorSurname, auditorEmail, auditString }
+    [Authorize]
     [Function(nameof(CreateAudit))]
     public async Task<IActionResult> CreateAudit(
         [HttpTrigger("post", Route = "audit")] HttpRequest req)
@@ -337,11 +361,11 @@ public class Api(
             await session.StoreAsync(audit, req.HttpContext.RequestAborted);
         }
 
-        audit!.AuditorName    = body.AuditorName    ?? string.Empty;
-        audit.AuditorSurname  = body.AuditorSurname ?? string.Empty;
-        audit.AuditorEmail    = body.AuditorEmail   ?? string.Empty;
-        audit.AuditString     = body.AuditString    ?? string.Empty;
-        audit.GeneratedByAi   = body.GeneratedByAi;
+        audit!.AuditorName = body.AuditorName ?? string.Empty;
+        audit.AuditorSurname = body.AuditorSurname ?? string.Empty;
+        audit.AuditorEmail = body.AuditorEmail ?? string.Empty;
+        audit.AuditString = body.AuditString ?? string.Empty;
+        audit.GeneratedByAi = body.GeneratedByAi;
 
         await session.SaveChangesAsync(req.HttpContext.RequestAborted);
 
@@ -350,6 +374,7 @@ public class Api(
 
     // POST /api/audit/restore  — restores an audit document to a specific revision
     // Body (JSON): { auditId, changeVector }
+    [Authorize]
     [Function(nameof(RestoreAuditRevision))]
     public async Task<IActionResult> RestoreAuditRevision(
         [HttpTrigger("post", Route = "audit/restore")] HttpRequest req)
@@ -399,7 +424,7 @@ public class Api(
 
         var revisionDtos = revisions.Select(rev =>
         {
-            var meta         = session.Advanced.GetMetadataFor(rev);
+            var meta = session.Advanced.GetMetadataFor(rev);
             var lastModified = meta.TryGetValue("@last-modified", out var lm) ? lm?.ToString() ?? "" : "";
             var changeVector = meta.TryGetValue("@change-vector", out var cv) ? cv?.ToString() ?? "" : "";
             return new AuditRevisionDto(rev, changeVector, lastModified);
@@ -431,20 +456,20 @@ public class Api(
     public async Task OnAuditRevision(
         [QueueTrigger(AuditRevisionQueueEtlTask.QueueName, Connection = Constants.EnvVars.AzureStorageConnectionString)] string messageBody)
     {
-        var opts    = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+        var opts = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
         var envelope = JsonSerializer.Deserialize<CloudEventEnvelope<AuditRevisionMessage>>(messageBody, opts);
-        var msg      = envelope?.Data;
+        var msg = envelope?.Data;
 
         if (msg is null) return;
 
         using var notifSession = store.OpenAsyncSession();
         var notification = new AuditNotification
         {
-            AuditId       = msg.AuditId,
-            CompanyName   = msg.CompanyName,
-            ReportYear    = msg.ReportYear,
+            AuditId = msg.AuditId,
+            CompanyName = msg.CompanyName,
+            ReportYear = msg.ReportYear,
             ReportQuarter = msg.ReportQuarter,
-            At            = DateTime.UtcNow
+            At = DateTime.UtcNow
         };
 
         await notifSession.StoreAsync(notification);
@@ -459,12 +484,12 @@ public class Api(
         [HttpTrigger("get", Route = "audit/stream")] HttpRequest req)
     {
         var res = req.HttpContext.Response;
-        res.StatusCode                   = 200;
-        res.Headers["Content-Type"]      = "text/event-stream";
-        res.Headers["Cache-Control"]     = "no-cache";
+        res.StatusCode = 200;
+        res.Headers["Content-Type"] = "text/event-stream";
+        res.Headers["Cache-Control"] = "no-cache";
         res.Headers["X-Accel-Buffering"] = "no";
 
-        var ct          = req.HttpContext.RequestAborted;
+        var ct = req.HttpContext.RequestAborted;
         var jsonOptions = new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
 
         using var subscription = store.Changes()
@@ -545,7 +570,7 @@ public record CreateAuditRequest(
     string? AuditorSurname,
     string? AuditorEmail,
     string? AuditString,
-    bool    GeneratedByAi = false);
+    bool GeneratedByAi = false);
 
 public record PagedResult<T>(IList<T> Items, int Page, int PageSize, int TotalPages);
 
@@ -556,8 +581,8 @@ public record RestoreAuditRevisionRequest(string? AuditId, string? ChangeVector)
 public record AuditRevisionMessage(
     string AuditId,
     string CompanyName,
-    int    ReportYear,
-    int    ReportQuarter);
+    int ReportYear,
+    int ReportQuarter);
 
 public record UpdateUserRequest(string? Name, string? Surname);
 

@@ -25,6 +25,11 @@ export function apiUrl(path: string): string {
 export async function callApi<T>(path: string, options?: RequestInit): Promise<T> {
 	const res = await fetch(apiUrl(path), options);
 
+	if (res.status === 401) {
+		window.location.href = `/bff/login?returnUrl=${encodeURIComponent(window.location.pathname + window.location.search)}`;
+		return new Promise(() => {}); // never resolves — navigation takes over
+	}
+
 	if (!res.ok) {
 		const txt = await res.text().catch(() => '');
 		throw new Error(`HTTP ${res.status} ${res.statusText} ${txt}`);

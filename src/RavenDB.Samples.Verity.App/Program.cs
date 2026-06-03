@@ -1,8 +1,10 @@
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Builder;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Raven.Migrations;
+using RavenDB.Samples.Verity.App;
 using RavenDB.Samples.Verity.App.Infrastructure;
 using RavenDB.Samples.Verity.Setup;
 using RavenDB.Samples.Verity.Setup.Migrations;
@@ -42,7 +44,6 @@ builder.Services.AddCors(options =>
 });
 
 builder.ConfigureFunctionsWebApplication();
-
 builder.Services.AddHttpContextAccessor();
 
 builder.Services.AddHttpClient<SecEdgarApi>(client =>
@@ -52,9 +53,21 @@ builder.Services.AddHttpClient<SecEdgarApi>(client =>
     client.DefaultRequestHeaders.TryAddWithoutValidation("User-Agent", userAgent);
 });
 
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(opt =>
+    {
+        opt.Authority = Environment.GetEnvironmentVariable(Constants.EnvVars.IdentityUrl);
+        opt.Audience = "verity-api";
+        opt.RequireHttpsMetadata = false;
+    });
+builder.Services.AddAuthorization();
+
+
 builder.Services
     .AddApplicationInsightsTelemetryWorkerService()
     .ConfigureFunctionsApplicationInsights();
+
+builder.UseMiddleware<AuthMiddleware>();
 
 builder.Build().Run();
 

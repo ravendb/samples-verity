@@ -1,5 +1,6 @@
 using Duende.IdentityServer;
 using Duende.IdentityServer.Configuration;
+using Duende.IdentityServer.Services;
 using Microsoft.IdentityModel.Tokens;
 using RavenDB.Samples.Verity.IdentityServer;
 using RavenDB.Samples.Verity.IdentityServer.Endpoints;
@@ -23,6 +24,7 @@ var dbName = Constants.DatabaseName ?? "";
 builder.AddRavenDBClient(dbName);
 
 builder.Services.AddSingleton<UserStore>();
+builder.Services.AddTransient<IEventSink, RavenEventSink>();
 
 // IdentityServer sets SameSite=None on its auth cookies, which requires Secure
 // (HTTPS). In dev we run on plain HTTP so the browser rejects those cookies and
@@ -35,7 +37,7 @@ builder.Services.Configure<CookiePolicyOptions>(options =>
         if (ctx.CookieOptions.SameSite == SameSiteMode.None)
         {
             ctx.CookieOptions.SameSite = SameSiteMode.Lax;
-            ctx.CookieOptions.Secure   = false;
+            ctx.CookieOptions.Secure = false;
         }
     };
 });
@@ -43,7 +45,7 @@ builder.Services.Configure<CookiePolicyOptions>(options =>
 builder.Services
     .AddIdentityServer(opt =>
     {
-        opt.Events.RaiseErrorEvents   = true;
+        opt.Events.RaiseErrorEvents = true;
         opt.Events.RaiseFailureEvents = true;
         opt.Events.RaiseSuccessEvents = true;
         if (builder.Environment.IsProduction())

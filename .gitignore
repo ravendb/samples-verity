@@ -6,6 +6,9 @@
 # Dev TLS certificates — never commit private keys
 certs/
 
+# Duende IdentityServer signing keys — generated at runtime, must not be committed
+**/IdentityServer/keys/
+
 # User-specific files
 *.rsuser
 *.suo

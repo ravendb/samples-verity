@@ -37,8 +37,7 @@ public static class IdentityConfig
             RequireConsent    = false,
 
             RequirePushedAuthorization = true,
-            RequireRequestObject               = true,
-            RefreshTokenUsage                  = TokenUsage.OneTimeOnly,
+            RefreshTokenUsage          = TokenUsage.OneTimeOnly,
 
             RedirectUris           = { $"{bffBaseUrl}/signin-oidc" },
             FrontChannelLogoutUri  = $"{bffBaseUrl}/signout-oidc",

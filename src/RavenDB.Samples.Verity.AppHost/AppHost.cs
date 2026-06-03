@@ -93,6 +93,10 @@ var frontend = builder.AddNpmApp("Frontend", "../RavenDB.Samples.Verity.Frontend
     .WithHttpEndpoint(env: "VITE_PORT")
     .PublishAsDockerFile();
 
+// Duende license key — optional. When set, suppresses the trial-mode warning.
+// Store via: dotnet user-secrets set "Parameters:duende-license" "<key>"  (run in AppHost folder)
+var duendeLicenseKey = builder.Configuration["Parameters:duende-license"] ?? "";
+
 // IdentityServer — local Duende IdentityServer for development
 var identity = builder.AddProject<RavenDB_Samples_Verity_IdentityServer>("identity")
     .WithExternalHttpEndpoints()
@@ -112,6 +116,13 @@ var bff = builder.AddProject<RavenDB_Samples_Verity_Bff>("bff")
     .WithEnvironment("Api__Url",       functions.GetEndpoint("http"))
     .WithEnvironment("Frontend__Url",  frontend.GetEndpoint("http"))
     .WithExternalHttpEndpoints();
+
+// Inject license key only when provided — avoids prompting users who run without one.
+if (!string.IsNullOrEmpty(duendeLicenseKey))
+{
+    identity.WithEnvironment("IdentityServer__LicenseKey", duendeLicenseKey);
+    bff.WithEnvironment("IdentityServer__LicenseKey", duendeLicenseKey);
+}
 
 // Tell IdentityServer the BFF's base URL for redirect URI registration.
 // Must be the external HTTPS endpoint — the browser sends redirect_uri based on
