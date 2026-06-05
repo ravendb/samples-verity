@@ -9,12 +9,12 @@ namespace RavenDB.Samples.Verity.Model;
 public static class SecEdgarCompanyImporter
 {
     public record CompanyImportData(
-        string   PaddedCik,
-        string   Name,
-        string?  Sic,
-        string?  SicDescription,
+        string PaddedCik,
+        string Name,
+        string? Sic,
+        string? SicDescription,
         DateTime FiscalYearStart);
-    
+
     private static readonly string[] FirstNames =
     [
         "James", "Mary", "Robert", "Patricia", "Michael",
@@ -37,10 +37,10 @@ public static class SecEdgarCompanyImporter
         response.EnsureSuccessStatusCode();
 
         await using var stream = await response.Content.ReadAsStreamAsync(ct);
-        using var doc  = await JsonDocument.ParseAsync(stream, cancellationToken: ct);
-        var       root = doc.RootElement;
+        using var doc = await JsonDocument.ParseAsync(stream, cancellationToken: ct);
+        var root = doc.RootElement;
 
-        var name          = root.GetProperty("name").GetString() ?? paddedCik;
+        var name = root.GetProperty("name").GetString() ?? paddedCik;
         var fiscalYearEnd = root.TryGetProperty("fiscalYearEnd", out var fye) ? fye.GetString() : null;
 
         var fiscalYearStart = new DateTime(1, int.Parse(fiscalYearEnd!.Substring(0, 2)), 1, 0, 0, 0, DateTimeKind.Utc)
@@ -49,9 +49,9 @@ public static class SecEdgarCompanyImporter
             fiscalYearStart = fiscalYearStart.AddYears(-1);
 
         return new CompanyImportData(
-            PaddedCik:      paddedCik,
-            Name:           name,
-            Sic:            root.TryGetProperty("sic",            out var sic)     ? sic.GetString()     : null,
+            PaddedCik: paddedCik,
+            Name: name,
+            Sic: root.TryGetProperty("sic", out var sic) ? sic.GetString() : null,
             SicDescription: root.TryGetProperty("sicDescription", out var sicDesc) ? sicDesc.GetString() : null,
             FiscalYearStart: fiscalYearStart);
     }
@@ -66,7 +66,7 @@ public static class SecEdgarCompanyImporter
         CancellationToken ct = default)
     {
         var rng = Random.Shared;
-        
+
         var companyId = Company.BuildId(data.Name);
 
         if (await session.Advanced.ExistsAsync(companyId, ct))
@@ -74,18 +74,18 @@ public static class SecEdgarCompanyImporter
 
         var company = new Company
         {
-            Id              = companyId,
-            Name            = data.Name,
-            Cik             = data.PaddedCik,
-            Sic             = data.Sic,
-            SicDescription  = data.SicDescription,
+            Id = companyId,
+            Name = data.Name,
+            Cik = data.PaddedCik,
+            Sic = data.Sic,
+            SicDescription = data.SicDescription,
             FiscalYearStart = data.FiscalYearStart,
         };
 
         await session.StoreAsync(company, companyId, ct);
 
         var usedPairs = new HashSet<string>();
-        var domain    = data.Name.Replace(" ", "").Replace(",", "").Replace(".", "").ToLowerInvariant();
+        var domain = data.Name.Replace(" ", "").Replace(",", "").Replace(".", "").ToLowerInvariant();
 
         for (var i = 0; i < 2; i++)
         {
@@ -93,16 +93,16 @@ public static class SecEdgarCompanyImporter
             do
             {
                 firstName = FirstNames[rng.Next(FirstNames.Length)];
-                lastName  = LastNames[rng.Next(LastNames.Length)];
+                lastName = LastNames[rng.Next(LastNames.Length)];
             } while (!usedPairs.Add($"{firstName} {lastName}"));
 
             await session.StoreAsync(new User
             {
-                Id        = User.BuildId(data.Name, firstName, lastName),
-                CompanyId = companyId,
-                Name      = firstName,
-                Surname   = lastName,
-                Email     = $"{firstName.ToLower()}{lastName.ToLower()}@{domain}.com"
+                Id = User.BuildId(data.Name, firstName, lastName),
+                CompanyIds = [companyId],
+                Name = firstName,
+                Surname = lastName,
+                Email = $"{firstName.ToLower()}{lastName.ToLower()}@{domain}.com"
             }, ct);
         }
 
