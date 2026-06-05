@@ -15,6 +15,9 @@
 {#if user !== 'loading'}
 	<div class="auth-bar">
 		{#if user}
+			{#if user.role === 'Admin'}
+				<a href="/admin" class="auth-btn auth-btn--ghost">Admin</a>
+			{/if}
 			<span class="auth-name" title={user.email}>{user.name}</span>
 			<a href={user.logoutUrl} class="auth-btn auth-btn--ghost">Sign out</a>
 		{:else}

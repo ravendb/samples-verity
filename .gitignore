@@ -17,6 +17,10 @@ certs/
 *.sln.docstates
 *.env
 
+# IdentityServer auto-generated signing keys (env-specific, protected by Data Protection)
+src/RavenDB.Samples.Verity.IdentityServer/keys/
+
+
 # User-specific files (MonoDevelop/Xamarin Studio)
 *.userprefs
 

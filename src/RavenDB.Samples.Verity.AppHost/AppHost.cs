@@ -3,11 +3,11 @@ using Projects;
 using RavenDB.Samples.Verity.AppHost;
 
 // Env var names must match Constants.EnvVars in RavenDB.Samples.Verity.Setup
-const string envOpenAiApiKey                = "SAMPLES_VERITY_OPENAI_API_KEY";
-const string envSecEdgarUserAgent           = "SAMPLES_VERITY_SEC_EDGAR_USER_AGENT";
+const string envOpenAiApiKey = "SAMPLES_VERITY_OPENAI_API_KEY";
+const string envSecEdgarUserAgent = "SAMPLES_VERITY_SEC_EDGAR_USER_AGENT";
 const string envAzureStorageConnectionString = "SAMPLES_VERITY_AZURE_STORAGE_CONNECTION_STRING";
-const string envSinkServerUrl               = "SAMPLES_VERITY_SINK_SERVER_URL";
-const string envHubServerInternalUrl        = "SAMPLES_VERITY_HUB_SERVER_INTERNAL_URL";
+const string envSinkServerUrl = "SAMPLES_VERITY_SINK_SERVER_URL";
+const string envHubServerInternalUrl = "SAMPLES_VERITY_HUB_SERVER_INTERNAL_URL";
 
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -42,7 +42,7 @@ var ravenDbServer = builder
     .WithEnvironment("RAVEN_License_Eula_Accepted", "true")
     .WithEnvironment("RAVEN_License", ravenDbLicense);
 
-var db   = ravenDbServer.AddDatabase("Verity");
+var db = ravenDbServer.AddDatabase("Verity");
 var sink = ravenDbServer.AddDatabase("Verity-sink");
 
 var ravenHttp = ravenDbServer.GetEndpoint("http");
@@ -111,7 +111,7 @@ var identity = builder.AddProject<RavenDB_Samples_Verity_IdentityServer>("identi
     .WithExternalHttpEndpoints()
     .WithReference(db)
     .WaitFor(db);
-
+functions.WithEnvironment("Identity__Url", identity.GetEndpoint("http"));
 // BFF — single entry point for the browser; proxies API (with tokens) + frontend
 var bff = builder.AddProject<RavenDB_Samples_Verity_Bff>("bff")
     .WithReference(functions)
@@ -121,9 +121,9 @@ var bff = builder.AddProject<RavenDB_Samples_Verity_Bff>("bff")
     .WithReference(identity)
     .WaitFor(identity)
     // Pass actual URLs so OIDC issuer validation works correctly.
-    .WithEnvironment("Identity__Url",  identity.GetEndpoint("http"))
-    .WithEnvironment("Api__Url",       functions.GetEndpoint("http"))
-    .WithEnvironment("Frontend__Url",  frontend.GetEndpoint("http"))
+    .WithEnvironment("Identity__Url", identity.GetEndpoint("http"))
+    .WithEnvironment("Api__Url", functions.GetEndpoint("http"))
+    .WithEnvironment("Frontend__Url", frontend.GetEndpoint("http"))
     .WithExternalHttpEndpoints();
 
 // Inject license key only when provided — avoids prompting users who run without one.

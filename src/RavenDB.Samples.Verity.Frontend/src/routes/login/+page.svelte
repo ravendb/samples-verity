@@ -1,9 +1,7 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
 	import { loginUrl, register } from '$lib/auth';
-	import { getCompanies, type Company } from '$lib/services/companies';
 
 	const returnUrl  = $page.url.searchParams.get('returnUrl') ?? '/';
 	const isRegister = $page.url.searchParams.get('tab') === 'register';
@@ -13,24 +11,12 @@
 		goto(loginUrl(returnUrl), { replaceState: true });
 	}
 
-	// ── Company list ─────────────────────────────────────────────
-	let companies: Company[] = $state([]);
-
-	onMount(async () => {
-		try {
-			const data = await getCompanies(1, 100);
-			companies = data.items;
-		} catch { /* fallback to text input */ }
-	});
-
 	// ── Register form state ──────────────────────────────────────
 	let username    = $state('');
 	let displayName = $state('');
 	let email       = $state('');
 	let password    = $state('');
 	let confirm     = $state('');
-	let role        = $state<'User' | 'Employee'>('User');
-	let companyId   = $state('');
 	let error       = $state('');
 	let submitting  = $state(false);
 
@@ -45,17 +31,9 @@
 
 		submitting = true;
 		try {
-			const res = await register({
-				username,
-				password,
-				displayName,
-				email,
-				role,
-				companyId: role === 'Employee' ? companyId : null,
-			});
+			const res = await register({ username, password, displayName, email });
 
 			if (res.success) {
-				// After registration send user to login
 				await goto(loginUrl(returnUrl));
 			} else {
 				error = res.error ?? 'Registration failed. Please try again.';
@@ -137,38 +115,6 @@
 				autocomplete="new-password"
 				required
 			/>
-
-			<p class="section-label">Account type</p>
-			<div class="role-group">
-				<label class="role-option" class:selected={role === 'User'}>
-					<input type="radio" bind:group={role} value="User" />
-					Regular user
-				</label>
-				<label class="role-option" class:selected={role === 'Employee'}>
-					<input type="radio" bind:group={role} value="Employee" />
-					Company employee
-				</label>
-			</div>
-
-			{#if role === 'Employee'}
-				<label for="companyId">Company</label>
-				{#if companies.length > 0}
-					<select id="companyId" bind:value={companyId} required>
-						<option value="" disabled selected>Select a company…</option>
-						{#each companies as c}
-							<option value={c.id}>{c.name}</option>
-						{/each}
-					</select>
-				{:else}
-					<input
-						id="companyId"
-						type="text"
-						bind:value={companyId}
-						placeholder="e.g. companies/1-A"
-						required
-					/>
-				{/if}
-			{/if}
 
 			<button type="submit" class="btn-primary" disabled={submitting}>
 				{submitting ? 'Creating account…' : 'Create account'}

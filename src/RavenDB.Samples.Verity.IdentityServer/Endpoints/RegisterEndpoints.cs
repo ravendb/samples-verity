@@ -17,12 +17,9 @@ public static class RegisterEndpoints
                 return Results.BadRequest(new { error = "Full name must be at least 2 characters." });
             if (string.IsNullOrWhiteSpace(req.Email))
                 return Results.BadRequest(new { error = "Email is required." });
-            if (req.Role == UserRole.Employee && string.IsNullOrWhiteSpace(req.CompanyId))
-                return Results.BadRequest(new { error = "Company ID is required for employees." });
 
             var (success, error) = await users.RegisterAsync(
-                req.Username, req.Password, req.DisplayName, req.Email,
-                req.Role, req.CompanyId?.Trim());
+                req.Username, req.Password, req.DisplayName, req.Email);
 
             return success ? Results.Ok() : Results.BadRequest(new { error });
         }).AllowAnonymous();
@@ -32,9 +29,7 @@ public static class RegisterEndpoints
 }
 
 record RegisterApiRequest(
-    string   Username,
-    string   Password,
-    string   DisplayName,
-    string   Email,
-    UserRole Role      = UserRole.User,
-    string?  CompanyId = null);
+    string Username,
+    string Password,
+    string DisplayName,
+    string Email);

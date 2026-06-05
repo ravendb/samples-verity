@@ -87,6 +87,7 @@ builder.Services
     })
     .AddInMemoryIdentityResources(IdentityConfig.IdentityResources)
     .AddInMemoryApiScopes(IdentityConfig.ApiScopes)
+    .AddInMemoryApiResources(IdentityConfig.ApiResources)   // ← DODAJ
     .AddInMemoryClients(IdentityConfig.GetClients(bffBaseUrl));
 
 var app = builder.Build();

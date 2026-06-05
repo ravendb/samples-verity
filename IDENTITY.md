@@ -4,9 +4,9 @@ Verity is a financial audit platform — auditors review SEC filings, generate A
 
 ## Why Duende IdentityServer
 
-Verity has multiple companies, multiple auditors per company, and two distinct roles: regular users and company employees. A single shared login or ad-hoc JWT generation would not scale here. Duende IdentityServer provides a dedicated OAuth 2.0 / OpenID Connect authority that:
+Verity has multiple companies, multiple auditors per company, and three distinct roles: Viewer, Analyst, and Admin. A single shared login or ad-hoc JWT generation would not scale here. Duende IdentityServer provides a dedicated OAuth 2.0 / OpenID Connect authority that:
 
-- Owns all user credentials and claims (name, email, `role`, `company_id`)
+- Owns all user credentials and claims (name, email, `role`, one `company_id` claim per assigned company)
 - Issues short-lived access tokens scoped to the `verity-api` resource
 - Manages refresh tokens with one-time-use rotation, so a stolen refresh token is immediately invalidated on use
 - Keeps auth logic out of the application — the Azure Functions backend only validates tokens, never issues them
@@ -45,18 +45,18 @@ Access tokens are bound to the BFF's RSA key pair. If an access token is interce
 
 Every significant authentication action — login, logout, token issuance, client authentication failure — is written to the `SecurityEvents` collection in RavenDB by a custom `IEventSink` (`RavenEventSink`).
 
-| Event | What it records |
-|---|---|
-| `UserLoginSuccess` | who logged in, from which IP, via which client |
-| `UserLoginFailure` | attempted username, failure reason |
-| `UserLogoutSuccess` | who logged out |
-| `TokenIssuedSuccess` | subject, client, grant type |
-| `TokenIssuedFailure` | client, error reason |
+| Event                         | What it records                                 |
+| ----------------------------- | ----------------------------------------------- |
+| `UserLoginSuccess`            | who logged in, from which IP, via which client  |
+| `UserLoginFailure`            | attempted username, failure reason              |
+| `UserLogoutSuccess`           | who logged out                                  |
+| `TokenIssuedSuccess`          | subject, client, grant type                     |
+| `TokenIssuedFailure`          | client, error reason                            |
 | `ClientAuthenticationFailure` | client ID, error (potential brute-force signal) |
 
 Documents expire automatically after 90 days via RavenDB's built-in `@expires` metadata.
 
-This matters for financial applications because compliance frameworks (SOC 2, ISO 27001, FAPI 2.0 itself) require evidence of *who authenticated and when*, not just *who changed what*. Storing these events in the same database as the audit records — queryable with RQL, visible in RavenDB Studio — creates a unified compliance picture: financial operations and the access history surrounding them, in one place.
+This matters for financial applications because compliance frameworks (SOC 2, ISO 27001, FAPI 2.0 itself) require evidence of _who authenticated and when_, not just _who changed what_. Storing these events in the same database as the audit records — queryable with RQL, visible in RavenDB Studio — creates a unified compliance picture: financial operations and the access history surrounding them, in one place.
 
 ## Architecture Overview
 
@@ -79,7 +79,8 @@ IdentityServer  (Duende IdentityServer 7.x)
 
 Azure Functions  (backend API)
   │  JWT Bearer validation (Authority = IdentityServer)
-  │  [Authorize] on write endpoints
+  │  [Authorize(Roles = "...")] on all non-public endpoints
+  │  Analyst queries scoped to their CompanyIds at the DB level
   └──── RavenDB  (Verity database)
 ```
 
@@ -96,16 +97,28 @@ dotnet user-secrets set "Parameters:duende-license" "<your-license-key>"
 
 The same key is forwarded to both the IdentityServer and BFF projects by Aspire at startup.
 
+## Roles
+
+| Role      | What they can do                                                                                                  |
+| --------- | ----------------------------------------------------------------------------------------------------------------- |
+| `Viewer`  | Browse all companies and reports — read-only, no audit access                                                     |
+| `Analyst` | Read and write audits, fetch 10-Q filings — scoped to their assigned companies only                               |
+| `Admin`   | Full access to all companies, reports, and audits; manages user roles and company assignments via the Admin Panel |
+
+Roles and company assignments are managed in the Admin Panel (`/admin`), visible in the navbar when logged in as Admin. New accounts created via the Register form always start as `Viewer`.
+
+When an Analyst holds multiple company assignments, IdentityServer emits one `company_id` claim per company. The backend enforces the scope at query level — an Analyst calling `/api/companies` receives only their assigned companies, not the full list.
+
 ## Demo Credentials
 
-After running the Setup migrations, the following accounts are available:
+After running the Setup migrations (`POST /api/migrate`), the following accounts are available:
 
-| Username | Password | Role | Company |
-|---|---|---|---|
-| `alice` | `Demo1234!` | Employee | Apple |
-| `bob` | `Demo1234!` | Employee | Apple |
-| `carol` | `Demo1234!` | Employee | Microsoft |
-| `dave` | `Demo1234!` | Employee | Microsoft |
-| `eve` | `Demo1234!` | User | — |
+| Username | Password    | Role    | Companies                               |
+| -------- | ----------- | ------- | --------------------------------------- |
+| `alice`  | `Demo1234!` | Admin   | —                                       |
+| `bob`    | `Demo1234!` | Analyst | Apple (companies[0] alphabetically)     |
+| `carol`  | `Demo1234!` | Analyst | Microsoft (companies[1] alphabetically) |
+| `dave`   | `Demo1234!` | Analyst | Microsoft (companies[1] alphabetically) |
+| `eve`    | `Demo1234!` | Viewer  | —                                       |
 
-To create additional accounts, use the **Register** link in the top-right corner of the application.
+To create additional accounts, use the **Register** link in the top-right corner of the application. New accounts start as `Viewer` — use the Admin Panel to promote them to Analyst or Admin and assign companies.

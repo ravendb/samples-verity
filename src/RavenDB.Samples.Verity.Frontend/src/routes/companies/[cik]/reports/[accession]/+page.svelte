@@ -9,7 +9,7 @@
   import AuthBar from '$lib/components/AuthBar.svelte';
   import { lastUpdatedReportId } from '$lib/stores/liveUpdates';
 
-  const accession = decodeURIComponent($page.params.accession);
+  const accession = decodeURIComponent($page.params.accession ?? '');
 
   function autoResize(node: HTMLTextAreaElement) {
     function resize() {
@@ -258,7 +258,7 @@
       <section class="card">
         <div class="audit-section-header">
           <h2 class="section-title" style="margin:0">Audit</h2>
-          {#if !editing && user?.companyId && user.companyId === report.companyId}
+          {#if !editing && (user?.role === 'Admin' || (user?.role === 'Analyst' && user.companyIds.includes(report.companyId)))}
             <button class="edit-btn" onclick={openForm}>
               {revisions.length > 0 ? '✎ Edit' : '+ Add Audit'}
             </button>
@@ -348,7 +348,7 @@
                       <span class="history-auditor">{rev.data.auditorName} {rev.data.auditorSurname}</span>
                       <span class="history-date">{fmtDate(rev.lastModified)}</span>
                     </div>
-                    {#if user?.companyId && user.companyId === report?.companyId}
+                    {#if user?.role === 'Admin' || (user?.role === 'Analyst' && user.companyIds.includes(report?.companyId ?? ''))}
                       <button
                         class="restore-btn"
                         disabled={restoreStatus === 'loading' && restoreIdx === idx}

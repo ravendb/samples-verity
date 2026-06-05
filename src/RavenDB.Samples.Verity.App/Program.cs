@@ -6,6 +6,7 @@ using Microsoft.Extensions.Hosting;
 using RavenDB.Samples.Verity.App;
 using RavenDB.Samples.Verity.App.Infrastructure;
 using RavenDB.Samples.Verity.Setup;
+using System.Text.Json.Serialization;
 
 var builder = FunctionsApplication.CreateBuilder(args);
 
@@ -26,6 +27,10 @@ builder.Services.AddCors(options =>
 builder.ConfigureFunctionsWebApplication();
 builder.Services.AddHttpContextAccessor();
 
+// Serializuj enumy jako stringi ("Admin", "Analyst", "Viewer"), nie jako liczby.
+builder.Services.Configure<Microsoft.AspNetCore.Mvc.JsonOptions>(o =>
+    o.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()));
+
 builder.Services.AddHttpClient<SecEdgarApi>(client =>
 {
     var userAgent = Environment.GetEnvironmentVariable(Constants.EnvVars.SecEdgarUserAgent)
@@ -39,6 +44,9 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         opt.Authority = Environment.GetEnvironmentVariable(Constants.EnvVars.IdentityUrl);
         opt.Audience = "verity-api";
         opt.RequireHttpsMetadata = false;
+        opt.MapInboundClaims = false;
+        opt.TokenValidationParameters.RoleClaimType = "role";
+        opt.TokenValidationParameters.NameClaimType = "name";
     });
 builder.Services.AddAuthorization();
 

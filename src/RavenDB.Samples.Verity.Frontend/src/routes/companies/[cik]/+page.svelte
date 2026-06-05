@@ -9,7 +9,7 @@
   import AuthBar from '$lib/components/AuthBar.svelte';
   import { lastUpdatedReportId } from '$lib/stores/liveUpdates';
 
-  const cik = decodeURIComponent($page.params.cik);
+  const cik = decodeURIComponent($page.params.cik ?? '');
 
   let user      = $state<UserInfo | null>(null);
   let company   = $state<Company | null>(null);
@@ -21,7 +21,12 @@
   let fetchErrorMsg = $state('');
   let maxReports    = $state(5);
 
-  let canFetch = $derived(!!user?.companyId && company !== null && user.companyId === company.id);
+  let canFetch = $derived(
+    company !== null && (
+      user?.role === 'Admin' ||
+      (user?.role === 'Analyst' && user.companyIds.includes(company.id))
+    )
+  );
 
   onMount(async () => {
     user = await getUser();
@@ -312,7 +317,7 @@
               <tbody>
                 {#each reports as r}
                   <tr class="clickable-row" onclick={() => openReport(r.accessionNumber)}>
-                    <td><span class="tag" headers="Type">{r.formType}</span></td>
+                    <td><span class="tag">{r.formType}</span></td>
                     <td class="center" headers="Quarter">{r.year} - {r.quarter != null ? `Q${r.quarter}` : '—'}</td>
                     <td class="center" headers="ReportDate">{r.reportDate}</td>
                     <td class="number revenue" headers="Revenues">{formatNumber(r.revenues)} {r.abbreviation}</td>

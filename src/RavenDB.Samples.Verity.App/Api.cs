@@ -33,12 +33,21 @@ public class Api(
     private static string? GetSubjectFromBearer(HttpRequest req)
     {
         var claims = DecodeJwtClaims(req);
-        return claims.GetValueOrDefault("sub");
+        return claims.GetValueOrDefault("sub")?.FirstOrDefault();
     }
+    private async Task<User?> GetCurrentUserAsync(HttpRequest req)
+    {
+        var sub = GetSubjectFromBearer(req);
+        if (sub is null) return null;
+        return await session.LoadAsync<User>($"users/{sub}", req.HttpContext.RequestAborted);
+    }
+    private static bool CanAccessCompany(User user, string companyId) =>
+    user.Role == UserRole.Admin ||
+    (user.Role == UserRole.Analyst && user.CompanyIds.Contains(companyId));
 
     // Decodes the JWT payload without signature validation.
     // The BFF has already validated the token; we only need the claims.
-    private static Dictionary<string, string> DecodeJwtClaims(HttpRequest req)
+    private static Dictionary<string, string[]> DecodeJwtClaims(HttpRequest req)
     {
         var auth = req.Headers.Authorization.ToString();
         if (!auth.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
@@ -55,8 +64,15 @@ public class Api(
             var json = Encoding.UTF8.GetString(Convert.FromBase64String(padded));
             using var doc = JsonDocument.Parse(json);
             return doc.RootElement.EnumerateObject()
-                .Where(p => p.Value.ValueKind == JsonValueKind.String)
-                .ToDictionary(p => p.Name, p => p.Value.GetString()!);
+                .Where(p => p.Value.ValueKind is JsonValueKind.String or JsonValueKind.Array)
+                .ToDictionary(
+                    p => p.Name,
+                    p => p.Value.ValueKind == JsonValueKind.Array
+                        ? p.Value.EnumerateArray()
+                                  .Where(e => e.ValueKind == JsonValueKind.String)
+                                  .Select(e => e.GetString()!)
+                                  .ToArray()
+                        : [p.Value.GetString()!]);
         }
         catch { return []; }
     }
@@ -70,6 +86,7 @@ public class Api(
     }
 
     // GET /api/reports?cik=320193
+    [Authorize]
     [Function(nameof(GetReports))]
     public async Task<IActionResult> GetReports(
         [HttpTrigger("get", Route = "reports")] HttpRequest req)
@@ -86,6 +103,10 @@ public class Api(
             if (company is null)
                 return new NotFoundObjectResult($"Company with CIK {cik} not found.");
 
+            var currentUser = await GetCurrentUserAsync(req);
+            if (currentUser?.Role == UserRole.Analyst && !currentUser.CompanyIds.Contains(company.Id))
+                return new ObjectResult("Access to this company is not allowed.") { StatusCode = 403 };
+
             var reports = await session.Query<Report>()
                                        .Where(r => r.CompanyId == company.Id)
                                        .OrderByDescending(r => r.ReportDate)
@@ -96,7 +117,7 @@ public class Api(
 
         return new NotFoundObjectResult($"No CIK number provided");
     }
-
+    [Authorize(Roles = nameof(UserRole.Admin))]
     [Function(nameof(GetEvents))]
     public async Task<IActionResult> GetEvents([HttpTrigger("get", Route = "security/events")] HttpRequest req)
     {
@@ -116,6 +137,7 @@ public class Api(
     }
 
     // GET /api/report?accession=0000320193-24-000123
+    [Authorize]
     [Function(nameof(GetReport))]
     public async Task<IActionResult> GetReport(
         [HttpTrigger("get", Route = "report")] HttpRequest req)
@@ -130,14 +152,27 @@ public class Api(
         if (report is null)
             return new NotFoundObjectResult($"Report with accession number '{accession}' not found.");
 
+        var currentUser = await GetCurrentUserAsync(req);
+        if (currentUser?.Role == UserRole.Analyst && !currentUser.CompanyIds.Contains(report.CompanyId))
+            return new ObjectResult("Access to this company is not allowed.") { StatusCode = 403 };
+
         return new JsonResult(report);
     }
 
     // GET /api/companies?page=1&pageSize=20
+    [Authorize]
     [Function(nameof(GetCompanies))]
     public async Task<IActionResult> GetCompanies(
         [HttpTrigger("get", Route = "companies")] HttpRequest req)
     {
+        var currentUser = await GetCurrentUserAsync(req);
+        if (currentUser?.Role == UserRole.Analyst)
+        {
+            var loaded = await session.LoadAsync<Company>(currentUser.CompanyIds, req.HttpContext.RequestAborted);
+            var list = loaded.Values.OfType<Company>().OrderBy(c => c.Name).ToList();
+            return new JsonResult(new PagedResult<Company>(list, 1, list.Count, 1));
+        }
+
         var page = int.TryParse(req.Query["page"], out var p) && p > 0 ? p : 1;
         var pageSize = int.TryParse(req.Query["pageSize"], out var ps) && ps > 0 ? Math.Min(ps, 100) : 20;
         var skip = (page - 1) * pageSize;
@@ -156,6 +191,7 @@ public class Api(
     }
 
     // GET /api/users?companyId=Companies/...
+    [Authorize(Roles = nameof(UserRole.Admin))]
     [Function(nameof(GetUsers))]
     public async Task<IActionResult> GetUsers(
         [HttpTrigger("get", Route = "users")] HttpRequest req)
@@ -165,7 +201,7 @@ public class Api(
             return new BadRequestObjectResult("Provide the 'companyId' query parameter.");
 
         var users = await session.Query<User>()
-                                 .Where(u => u.CompanyId == companyId)
+                                 .Where(u => u.CompanyIds.Contains(companyId))
                                  .OrderBy(u => u.Surname)
                                  .ThenBy(u => u.Name)
                                  .ToListAsync();
@@ -189,9 +225,9 @@ public class Api(
         if (user is null)
         {
             var claims = DecodeJwtClaims(req);
-            var fullName = claims.GetValueOrDefault("name", "");
+            var fullName = claims.GetValueOrDefault("name", []).FirstOrDefault() ?? "";
             var parts = fullName.Split(' ', 2, StringSplitOptions.RemoveEmptyEntries);
-            var roleString = claims.GetValueOrDefault("role", "User");
+            var roleString = claims.GetValueOrDefault("role", []).FirstOrDefault() ?? "Viewer";
 
             user = new User
             {
@@ -199,9 +235,9 @@ public class Api(
                 SubjectId = sub,
                 Name = parts.ElementAtOrDefault(0) ?? fullName,
                 Surname = parts.ElementAtOrDefault(1) ?? "",
-                Email = claims.GetValueOrDefault("email", ""),
-                Role = Enum.TryParse<UserRole>(roleString, out var r) ? r : UserRole.User,
-                CompanyId = claims.GetValueOrDefault("company_id"),
+                Email = claims.GetValueOrDefault("email", []).FirstOrDefault() ?? "",
+                Role = Enum.TryParse<UserRole>(roleString, out var r) ? r : UserRole.Viewer,
+                CompanyIds = [.. claims.GetValueOrDefault("company_id", [])],
             };
 
             await session.StoreAsync(user, id, req.HttpContext.RequestAborted);
@@ -238,6 +274,7 @@ public class Api(
     }
 
     // GET /api/company?cik=320193
+    [Authorize]
     [Function(nameof(GetCompany))]
     public async Task<IActionResult> GetCompany(
         [HttpTrigger("get", Route = "company")] HttpRequest req)
@@ -252,11 +289,15 @@ public class Api(
         if (company is null)
             return new NotFoundObjectResult($"Company with CIK {cik} does not exist in the database. Use POST /api/company to fetch it.");
 
+        var currentUser = await GetCurrentUserAsync(req);
+        if (currentUser?.Role == UserRole.Analyst && !currentUser.CompanyIds.Contains(company.Id))
+            return new ObjectResult("Access to this company is not allowed.") { StatusCode = 403 };
+
         return new JsonResult(company);
     }
 
     // POST /api/company?cik=320193
-    [Authorize]
+    [Authorize(Roles = nameof(UserRole.Admin))]
     [Function(nameof(SaveCompany))]
     public async Task<IActionResult> SaveCompany(
         [HttpTrigger("post", Route = "company")] HttpRequest req)
@@ -275,7 +316,7 @@ public class Api(
     }
 
     // POST /api/fetch-10q?cik=320193&max=5
-    [Authorize]
+    [Authorize(Roles = nameof(UserRole.Admin) + "," + nameof(UserRole.Analyst))]
     [Function(nameof(Fetch10Q))]
     public async Task<IActionResult> Fetch10Q(
         [HttpTrigger("post", Route = "fetch-10q")] HttpRequest req)
@@ -288,8 +329,24 @@ public class Api(
             max = 5;
 
         var paddedCik = SecEdgar.NormalizeCik(cik);
-        var company = await session.Query<Company>().FirstOrDefaultAsync(c => c.Cik == paddedCik)
-                        ?? await edgar.FetchAndSaveCompanyAsync(paddedCik, req.HttpContext.RequestAborted);
+
+        // najpierw szukamy istniejącej firmy
+        var company = await session.Query<Company>().FirstOrDefaultAsync(c => c.Cik == paddedCik);
+
+        var currentUser = await GetCurrentUserAsync(req);
+        if (currentUser is null) return new UnauthorizedResult();
+
+        if (company is null)
+        {
+            // tylko Admin może dodać nową firmę przez ten endpoint
+            if (currentUser.Role != UserRole.Admin)
+                return new ObjectResult("Company not found. Only Admin can add new companies.") { StatusCode = 403 };
+            company = await edgar.FetchAndSaveCompanyAsync(paddedCik, req.HttpContext.RequestAborted);
+        }
+        else if (!CanAccessCompany(currentUser, company.Id))
+        {
+            return new ObjectResult("Access to this company is not allowed.") { StatusCode = 403 };
+        }
 
         await edgar.FetchAndSaveAllFilingsAsync(company, max, req.HttpContext.RequestAborted);
 
@@ -298,7 +355,7 @@ public class Api(
 
     // POST /api/audit  — creates an audit for a given report
     // Body (JSON): { reportId, auditorName, auditorSurname, auditorEmail, auditString }
-    [Authorize]
+    [Authorize(Roles = nameof(UserRole.Admin) + "," + nameof(UserRole.Analyst))]
     [Function(nameof(CreateAudit))]
     public async Task<IActionResult> CreateAudit(
         [HttpTrigger("post", Route = "audit")] HttpRequest req)
@@ -328,7 +385,10 @@ public class Api(
         var company = await session.LoadAsync<Company>(report.CompanyId, req.HttpContext.RequestAborted);
         if (company is null)
             return new NotFoundObjectResult($"Company '{report.CompanyId}' not found.");
-
+        var currentUser = await GetCurrentUserAsync(req);
+        if (currentUser is null) return new UnauthorizedResult();
+        if (!CanAccessCompany(currentUser, company.Id))
+            return new ObjectResult("Access to this company is not allowed.") { StatusCode = 403 };
         var auditId = Audit.BuildId(company, report);
 
         // Upsert: update existing audit or create a new one
@@ -354,7 +414,7 @@ public class Api(
 
     // POST /api/audit/restore  — restores an audit document to a specific revision
     // Body (JSON): { auditId, changeVector }
-    [Authorize]
+    [Authorize(Roles = nameof(UserRole.Admin) + "," + nameof(UserRole.Analyst))]
     [Function(nameof(RestoreAuditRevision))]
     public async Task<IActionResult> RestoreAuditRevision(
         [HttpTrigger("post", Route = "audit/restore")] HttpRequest req)
@@ -374,16 +434,22 @@ public class Api(
 
         if (body is null || string.IsNullOrWhiteSpace(body.AuditId) || string.IsNullOrWhiteSpace(body.ChangeVector))
             return new BadRequestObjectResult("Provide 'auditId' and 'changeVector' in the request body.");
-
+        var currentUser = await GetCurrentUserAsync(req);
+        if (currentUser is null) return new UnauthorizedResult();
+        var audit = await session.LoadAsync<Audit>(body.AuditId, req.HttpContext.RequestAborted);
+        if (audit is null) return new NotFoundObjectResult($"Audit '{body.AuditId}' not found.");
+        var report = await session.LoadAsync<Report>(audit.ReportId, req.HttpContext.RequestAborted);
+        if (!CanAccessCompany(currentUser, report?.CompanyId ?? ""))
+            return new ObjectResult("Access to this company is not allowed.") { StatusCode = 403 };
         await store.Operations.SendAsync(
             new RevertRevisionsByIdOperation(body.AuditId, body.ChangeVector),
             token: req.HttpContext.RequestAborted);
-
         return new OkResult();
     }
 
     // GET /api/audit/revisions?reportId=Reports/...
     // Note: revisions must be enabled for the Audits collection in RavenDB Studio.
+    [Authorize(Roles = nameof(UserRole.Admin) + "," + nameof(UserRole.Analyst))]
     [Function(nameof(GetAuditRevisions))]
     public async Task<IActionResult> GetAuditRevisions(
         [HttpTrigger("get", Route = "audit/revisions")] HttpRequest req)
@@ -397,7 +463,11 @@ public class Api(
 
         if (audit is null)
             return new NotFoundObjectResult($"Audit for report '{reportId}' not found.");
-
+        var currentUser = await GetCurrentUserAsync(req);
+        if (currentUser is null) return new UnauthorizedResult();
+        var report = await session.LoadAsync<Report>(audit.ReportId, req.HttpContext.RequestAborted);
+        if (!CanAccessCompany(currentUser, report?.CompanyId ?? ""))
+            return new ObjectResult("Access to this company is not allowed.") { StatusCode = 403 };
         // RavenDB includes the current version as the first revision — no need to fetch it separately
         var revisions = await session.Advanced.Revisions
                                      .GetForAsync<Audit>(audit.Id, 0, 50, req.HttpContext.RequestAborted);
@@ -414,6 +484,7 @@ public class Api(
     }
 
     // GET /api/audit?reportId=Reports/...
+    [Authorize(Roles = nameof(UserRole.Admin) + "," + nameof(UserRole.Analyst))]
     [Function(nameof(GetAudit))]
     public async Task<IActionResult> GetAudit(
         [HttpTrigger("get", Route = "audit")] HttpRequest req)
@@ -427,8 +498,62 @@ public class Api(
 
         if (audit is null)
             return new NotFoundObjectResult($"Audit for report '{reportId}' not found.");
-
+        var currentUser = await GetCurrentUserAsync(req);
+        if (currentUser is null) return new UnauthorizedResult();
+        var report = await session.LoadAsync<Report>(audit.ReportId, req.HttpContext.RequestAborted);
+        if (!CanAccessCompany(currentUser, report?.CompanyId ?? ""))
+            return new ObjectResult("Access to this company is not allowed.") { StatusCode = 403 };
         return new JsonResult(audit);
+    }
+
+    // GET /api/manage/users
+    [Authorize(Roles = nameof(UserRole.Admin))]
+    [Function(nameof(GetAllUsers))]
+    public async Task<IActionResult> GetAllUsers(
+        [HttpTrigger("get", Route = "manage/users")] HttpRequest req)
+    {
+        var users = await session.Query<User>()
+                                 .Where(u => u.SubjectId != null)
+                                 .OrderBy(u => u.Surname)
+                                 .ThenBy(u => u.Name)
+                                 .ToListAsync();
+        return new JsonResult(users);
+    }
+
+    // PUT /api/manage/users/{subjectId}/role
+    [Authorize(Roles = nameof(UserRole.Admin))]
+    [Function(nameof(SetUserRole))]
+    public async Task<IActionResult> SetUserRole(
+        [HttpTrigger("put", Route = "manage/users/{subjectId}/role")] HttpRequest req, string subjectId)
+    {
+        var body = await req.ReadFromJsonAsync<SetRoleRequest>(req.HttpContext.RequestAborted);
+        if (body is null || !Enum.TryParse<UserRole>(body.Role, out var newRole))
+            return new BadRequestObjectResult("Provide 'role': Viewer, Analyst, or Admin.");
+
+        var user = await session.LoadAsync<User>($"users/{subjectId}", req.HttpContext.RequestAborted);
+        if (user is null) return new NotFoundObjectResult($"User '{subjectId}' not found.");
+
+        user.Role = newRole;
+        await session.SaveChangesAsync(req.HttpContext.RequestAborted);
+        return new JsonResult(user);
+    }
+
+    // PUT /api/manage/users/{subjectId}/companies
+    [Authorize(Roles = nameof(UserRole.Admin))]
+    [Function(nameof(SetUserCompanies))]
+    public async Task<IActionResult> SetUserCompanies(
+        [HttpTrigger("put", Route = "manage/users/{subjectId}/companies")] HttpRequest req, string subjectId)
+    {
+        var body = await req.ReadFromJsonAsync<SetCompaniesRequest>(req.HttpContext.RequestAborted);
+        if (body is null)
+            return new BadRequestObjectResult("Provide 'companyIds' array.");
+
+        var user = await session.LoadAsync<User>($"users/{subjectId}", req.HttpContext.RequestAborted);
+        if (user is null) return new NotFoundObjectResult($"User '{subjectId}' not found.");
+
+        user.CompanyIds = body.CompanyIds ?? [];
+        await session.SaveChangesAsync(req.HttpContext.RequestAborted);
+        return new JsonResult(user);
     }
 
     // QueueTrigger: "auditRevisions" → save AuditNotification to RavenDB
@@ -567,3 +692,6 @@ public record AuditRevisionMessage(
 public record UpdateUserRequest(string? Name, string? Surname);
 
 public record CloudEventEnvelope<T>(T? Data);
+
+public record SetRoleRequest(string? Role);
+public record SetCompaniesRequest(List<string>? CompanyIds);

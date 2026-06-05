@@ -10,12 +10,12 @@ using Yarp.ReverseProxy.Forwarder;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.AddServiceDefaults();
-builder.Services.AddDataProtection().UseEphemeralDataProtectionProvider();
+builder.Services.AddDataProtection();
 
 // ─── URLs injected by AppHost ────────────────────────────────────────────────
 var identityUrl = builder.Configuration["Identity:Url"]
     ?? throw new InvalidOperationException("Missing configuration: Identity:Url");
-var apiUrl      = builder.Configuration["Api:Url"]
+var apiUrl = builder.Configuration["Api:Url"]
     ?? throw new InvalidOperationException("Missing configuration: Api:Url");
 var frontendUrl = builder.Configuration["Frontend:Url"]
     ?? throw new InvalidOperationException("Missing configuration: Frontend:Url");
@@ -35,28 +35,28 @@ builder.Services.AddBff(options =>
 builder.Services
     .AddAuthentication(options =>
     {
-        options.DefaultScheme          = "cookie";
+        options.DefaultScheme = "cookie";
         options.DefaultChallengeScheme = "oidc";
-        options.DefaultSignOutScheme   = "oidc";
+        options.DefaultSignOutScheme = "oidc";
     })
     .AddCookie("cookie", options =>
     {
-        options.Cookie.Name         = "verity-bff";
-        options.Cookie.SameSite     = SameSiteMode.Lax;
+        options.Cookie.Name = "verity-bff";
+        options.Cookie.SameSite = SameSiteMode.Lax;
         options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
     })
     .AddOpenIdConnect("oidc", options =>
     {
-        options.Authority                     = identityUrl;
-        options.ClientId                      = "verity-bff";
-        options.ClientSecret                  = "bff-secret";
-        options.ResponseType                  = "code";
-        options.ResponseMode                  = "query";
-        options.RequireHttpsMetadata          = false;
+        options.Authority = identityUrl;
+        options.ClientId = "verity-bff";
+        options.ClientSecret = "bff-secret";
+        options.ResponseType = "code";
+        options.ResponseMode = "query";
+        options.RequireHttpsMetadata = false;
         options.GetClaimsFromUserInfoEndpoint = true;
-        options.PushedAuthorizationBehavior   = PushedAuthorizationBehavior.Require;
-        options.MapInboundClaims              = false;
-        options.SaveTokens                    = true;
+        options.PushedAuthorizationBehavior = PushedAuthorizationBehavior.Require;
+        options.MapInboundClaims = false;
+        options.SaveTokens = true;
 
         options.Scope.Clear();
         foreach (var s in new[] { "openid", "profile", "email", "verity-api", "offline_access" })
@@ -85,12 +85,12 @@ app.MapBffManagementEndpoints();
 // POST /bff/register — proxy JSON registration body to IdentityServer.
 app.MapPost("/bff/register", async (HttpRequest req, IHttpClientFactory http) =>
 {
-    using var client  = http.CreateClient();
-    var content       = new StreamContent(req.Body);
+    using var client = http.CreateClient();
+    var content = new StreamContent(req.Body);
     content.Headers.ContentType = new("application/json");
 
     var response = await client.PostAsync($"{identityUrl}/api/register", content);
-    var body     = await response.Content.ReadAsStringAsync();
+    var body = await response.Content.ReadAsStringAsync();
     return Results.Content(body, "application/json", statusCode: (int)response.StatusCode);
 }).AllowAnonymous();
 
@@ -109,10 +109,10 @@ app.Run();
 sealed class ApiTokenTransformer : HttpTransformer
 {
     public override async ValueTask TransformRequestAsync(
-        HttpContext        httpContext,
+        HttpContext httpContext,
         HttpRequestMessage proxyRequest,
-        string             destinationPrefix,
-        CancellationToken  cancellationToken)
+        string destinationPrefix,
+        CancellationToken cancellationToken)
     {
         await base.TransformRequestAsync(httpContext, proxyRequest, destinationPrefix, cancellationToken);
 

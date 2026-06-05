@@ -24,6 +24,13 @@ public static class IdentityConfig
             UserClaims = [JwtClaimTypes.Role, "company_id"],
         },
     ];
+    public static IEnumerable<ApiResource> ApiResources =>
+    [
+        new ApiResource("verity-api", "Verity API")
+        {
+            Scopes = { "verity-api" },
+        },
+    ];
 
     public static IEnumerable<Client> GetClients(string bffBaseUrl) =>
     [

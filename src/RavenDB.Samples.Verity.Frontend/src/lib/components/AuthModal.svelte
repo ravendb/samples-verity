@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { loginUrl, register } from '$lib/auth';
-	import { getCompanies, type Company } from '$lib/services/companies';
 	import { authModal } from '$lib/stores/authModal';
 	import { page } from '$app/stores';
 
@@ -8,41 +7,22 @@
 	// back here after a successful OIDC flow.
 	let currentLoginUrl = $derived(loginUrl($page.url.pathname + $page.url.search));
 
-	// ── Company list (loaded once, reused) ───────────────────────
-	let companies: Company[] = $state([]);
-	let companiesLoaded      = $state(false);
-
 	// ── Register form state ──────────────────────────────────────
 	let username    = $state('');
 	let displayName = $state('');
 	let email       = $state('');
 	let password    = $state('');
 	let confirm     = $state('');
-	let role        = $state<'User' | 'Employee'>('User');
-	let companyId   = $state('');
 	let error       = $state('');
 	let submitting  = $state(false);
 	let registered  = $state(false);
 
 	$effect(() => {
-		if ($authModal.open) {
-			if (!companiesLoaded) loadCompanies();
-		} else {
-			resetForm();
-		}
+		if (!$authModal.open) resetForm();
 	});
 
-	async function loadCompanies() {
-		try {
-			const data = await getCompanies(1, 100);
-			companies       = data.items;
-			companiesLoaded = true;
-		} catch { /* silently ignore — fallback to text input */ }
-	}
-
 	function resetForm() {
-		username = displayName = email = password = confirm = companyId = error = '';
-		role       = 'User';
+		username = displayName = email = password = confirm = error = '';
 		submitting = false;
 		registered = false;
 	}
@@ -58,10 +38,7 @@
 
 		submitting = true;
 		try {
-			const res = await register({
-				username, password, displayName, email, role,
-				companyId: role === 'Employee' ? companyId : null,
-			});
+			const res = await register({ username, password, displayName, email });
 			if (res.success) {
 				registered = true;
 				authModal.switchTab('login');
@@ -159,33 +136,6 @@
 						<label for="am-confirm">Confirm password</label>
 						<input id="am-confirm" type="password" bind:value={confirm}
 							autocomplete="new-password" required />
-
-						<p class="section-label">Account type</p>
-						<div class="role-group">
-							<label class="role-option" class:selected={role === 'User'}>
-								<input type="radio" bind:group={role} value="User" />
-								Regular user
-							</label>
-							<label class="role-option" class:selected={role === 'Employee'}>
-								<input type="radio" bind:group={role} value="Employee" />
-								Company employee
-							</label>
-						</div>
-
-						{#if role === 'Employee'}
-							<label for="am-company">Company</label>
-							{#if companies.length > 0}
-								<select id="am-company" bind:value={companyId} required>
-									<option value="" disabled selected>Select a company…</option>
-									{#each companies as c}
-										<option value={c.id}>{c.name}</option>
-									{/each}
-								</select>
-							{:else}
-								<input id="am-company" type="text" bind:value={companyId}
-									placeholder="e.g. Companies/Apple Inc." required />
-							{/if}
-						{/if}
 
 						<button type="submit" class="btn-primary btn-submit" disabled={submitting}>
 							{submitting ? 'Creating account…' : 'Create account'}

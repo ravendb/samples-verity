@@ -35,25 +35,25 @@ public sealed class UserStore(IDocumentStore store)
 
     public async Task<(bool Success, string Error)> RegisterAsync(
         string username, string password, string displayName, string email,
-        UserRole role = UserRole.User, string? companyId = null)
+        UserRole role = UserRole.Viewer, List<string>? companyIds = null)
     {
         var existing = await FindByUsernameAsync(username);
         if (existing is not null)
             return (false, "Username already taken.");
 
         var subjectId = Guid.NewGuid().ToString();
-        var parts     = displayName.Split(' ', 2, StringSplitOptions.RemoveEmptyEntries);
+        var parts = displayName.Split(' ', 2, StringSplitOptions.RemoveEmptyEntries);
 
         var user = new User
         {
-            Id           = User.BuildId(subjectId),
-            SubjectId    = subjectId,
-            Username     = username.ToLowerInvariant(),
-            Name         = parts.ElementAtOrDefault(0) ?? username,
-            Surname      = parts.ElementAtOrDefault(1) ?? string.Empty,
-            Email        = email,
-            Role         = role,
-            CompanyId    = companyId,
+            Id = User.BuildId(subjectId),
+            SubjectId = subjectId,
+            Username = username.ToLowerInvariant(),
+            Name = parts.ElementAtOrDefault(0) ?? username,
+            Surname = parts.ElementAtOrDefault(1) ?? string.Empty,
+            Email = email,
+            Role = role,
+            CompanyIds = companyIds ?? [],
         };
 
         user.PasswordHash = _hasher.HashPassword(user, password);
@@ -78,8 +78,10 @@ public sealed class UserStore(IDocumentStore store)
             new(JwtClaimTypes.Role,              user.Role.ToString()),
         };
 
-        if (user.CompanyId is not null)
-            claims.Add(new Claim("company_id", user.CompanyId));
+        foreach (var companyId in user.CompanyIds)
+        {
+            claims.Add(new Claim("company_id", companyId));
+        }
 
         return claims;
     }

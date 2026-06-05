@@ -11,7 +11,7 @@ export interface UserInfo {
     familyName: string;
     email:      string;
     role:       string;
-    companyId:  string | null;
+    companyIds: string[];
     logoutUrl:  string;
 }
 
@@ -27,7 +27,8 @@ export async function getUser(): Promise<UserInfo | null> {
         if (!res.ok) return null;
 
         const claims: BffClaim[] = await res.json();
-        const get = (type: string) => claims.find(c => c.type === type)?.value ?? '';
+        const get    = (type: string) => claims.find(c => c.type === type)?.value ?? '';
+        const getAll = (type: string) => claims.filter(c => c.type === type).map(c => c.value);
 
         return {
             sub:        get('sub'),
@@ -35,8 +36,8 @@ export async function getUser(): Promise<UserInfo | null> {
             givenName:  get('given_name'),
             familyName: get('family_name'),
             email:      get('email'),
-            role:       get('role') || 'User',
-            companyId:  claims.find(c => c.type === 'company_id')?.value ?? null,
+            role:       get('role') || 'Viewer',
+            companyIds: getAll('company_id'),
             logoutUrl:  get('bff:logout_url'),
         };
     } catch {
@@ -49,8 +50,6 @@ export interface RegisterData {
     password:    string;
     displayName: string;
     email:       string;
-    role:        'User' | 'Employee';
-    companyId:   string | null;
 }
 
 export async function register(data: RegisterData): Promise<{ success: boolean; error?: string }> {

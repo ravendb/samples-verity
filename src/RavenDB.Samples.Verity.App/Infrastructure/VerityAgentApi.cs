@@ -111,7 +111,7 @@ public class VerityAgentApi(
         if (report is null)
             return new NotFoundObjectResult($"Report '{body.ReportId}' not found.");
 
-        var user = await session.LoadAsync<User>(body.UserId, req.HttpContext.RequestAborted);
+        var user = await session.LoadAsync<User>($"users/{body.UserId}", req.HttpContext.RequestAborted);
         if (user is null)
             return new NotFoundObjectResult($"User '{body.UserId}' not found.");
 
