@@ -1,4 +1,4 @@
-<Project Sdk="Aspire.AppHost.Sdk/13.2.4">
+<Project Sdk="Aspire.AppHost.Sdk/13.3.0">
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
@@ -15,8 +15,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Aspire.Hosting" Version="13.2.4" />
-    <PackageReference Include="Aspire.Hosting.Azure.Functions" Version="13.2.4" />
+    <PackageReference Include="Aspire.Hosting" Version="13.3.0" />
+    <PackageReference Include="Aspire.Hosting.Azure.Functions" Version="13.3.0" />
     <PackageReference Include="Aspire.Hosting.NodeJs" Version="9.5.2" />
     <PackageReference Include="CommunityToolkit.Aspire.Hosting.RavenDB" Version="13.1.1" />
   </ItemGroup>
@@ -25,7 +25,7 @@
     <ProjectReference Include="..\RavenDB.Samples.Verity.App\RavenDB.Samples.Verity.App.csproj" />
     <ProjectReference Include="..\RavenDB.Samples.Verity.IdentityServer\RavenDB.Samples.Verity.IdentityServer.csproj" />
     <ProjectReference Include="..\RavenDB.Samples.Verity.Bff\RavenDB.Samples.Verity.Bff.csproj" />
-    <ProjectReference Include="..\RavenDB.Samples.Verity.Setup\RavenDB.Samples.Verity.Setup.csproj" IsAspireProjectResource="false" />
+    <ProjectReference Include="..\RavenDB.Samples.Verity.Setup\RavenDB.Samples.Verity.Setup.csproj" />
   </ItemGroup>
 
 </Project>
