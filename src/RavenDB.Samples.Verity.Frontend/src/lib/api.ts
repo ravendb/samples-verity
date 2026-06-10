@@ -2,7 +2,7 @@
  * Minimal API helper
  */
 
-import { url } from "inspector/promises";
+// (browser-only module; no Node imports)
 
 export interface PagedResult<T> {
   items: T[];
