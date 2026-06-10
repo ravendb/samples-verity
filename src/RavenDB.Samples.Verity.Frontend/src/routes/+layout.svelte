@@ -115,7 +115,6 @@
 
 <samples-ui-wrapper sourceLink="https://github.com/ravendb/samples-verity" theme="dark">
 	<div slot="header-actions" class="header-auth">
-		<a href="/security" class="nav-link">Security Events</a>
 		<AuthBar />
 	</div>
 	{@render children()}
@@ -171,15 +170,7 @@
 		gap: 0.75rem;
 	}
 
-	.nav-link {
-		font-size: 0.82rem;
-		color: #5b8fd4;
-		text-decoration: none;
-		white-space: nowrap;
-	}
-	.nav-link:hover { color: #93b4d8; }
-
-	:global(input, button, select, textarea) {
+:global(input, button, select, textarea) {
 		font: inherit;
 	}
 

@@ -16,6 +16,7 @@
 	<div class="auth-bar">
 		{#if user}
 			{#if user.role === 'Admin'}
+				<a href="/security" class="auth-btn auth-btn--ghost">Security Events</a>
 				<a href="/admin" class="auth-btn auth-btn--ghost">Admin</a>
 			{/if}
 			<span class="auth-name" title={user.email}>{user.name}</span>

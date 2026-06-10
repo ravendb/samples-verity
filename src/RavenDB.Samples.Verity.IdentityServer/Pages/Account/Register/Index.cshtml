@@ -126,10 +126,6 @@
                 background: rgba(46, 92, 154, 0.3);
             }
 
-            #company-field {
-                display: none;
-            }
-
             button {
                 width: 100%;
                 padding: 0.7rem;
@@ -227,24 +223,6 @@
             Already have an account? <a href="/Account/Login">Sign in</a>
         </div>
     </div>
-    <script>
-            (function () {
-                const radios = document.querySelectorAll('input[name="Input.Role"]');
-                const companyField = document.getElementById('company-field');
-                if (!companyField) return;
-                const companyInput = companyField.querySelector('input');
-
-                if (!companyInput) return;
-                function update() {
-                    const isEmployee = document.getElementById('role-employee').checked;
-                    companyField.style.display = isEmployee ? 'block' : 'none';
-                    companyInput.required = isEmployee;
-                }
-
-                radios.forEach(r => r.addEventListener('change', update));
-                update();
-            })();
-    </script>
 </body>
 
 </html>

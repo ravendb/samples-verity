@@ -61,11 +61,11 @@ export async function getAuditRevisions(reportId: string): Promise<AuditRevision
 	}
 }
 
-export async function generateAuditDraft(reportId: string, userId: string): Promise<string> {
+export async function generateAuditDraft(reportId: string): Promise<string> {
 	const result = await callApi<{ notes: string }>('api/agent/audit/generate', {
 		method:  'POST',
 		headers: { 'Content-Type': 'application/json' },
-		body:    JSON.stringify({ reportId, userId }),
+		body:    JSON.stringify({ reportId }),
 	});
 	return result.notes;
 }

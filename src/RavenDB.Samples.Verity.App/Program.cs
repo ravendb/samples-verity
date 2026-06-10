@@ -27,7 +27,7 @@ builder.Services.AddCors(options =>
 builder.ConfigureFunctionsWebApplication();
 builder.Services.AddHttpContextAccessor();
 
-// Serializuj enumy jako stringi ("Admin", "Analyst", "Viewer"), nie jako liczby.
+//Serialize enums as strings ("Admin", "Analyst", "Viewer"), not as numbers
 builder.Services.Configure<Microsoft.AspNetCore.Mvc.JsonOptions>(o =>
     o.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 
@@ -41,7 +41,8 @@ builder.Services.AddHttpClient<SecEdgarApi>(client =>
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(opt =>
     {
-        opt.Authority = Environment.GetEnvironmentVariable(Constants.EnvVars.IdentityUrl);
+        opt.Authority = Environment.GetEnvironmentVariable(Constants.EnvVars.IdentityUrl)
+                        ?? throw new InvalidOperationException($"No environment variable '{Constants.EnvVars.IdentityUrl}' found.");
         opt.Audience = "verity-api";
         opt.RequireHttpsMetadata = false;
         opt.MapInboundClaims = false;

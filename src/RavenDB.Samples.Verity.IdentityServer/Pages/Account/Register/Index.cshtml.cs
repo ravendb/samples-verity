@@ -13,7 +13,7 @@ public class IndexModel(UserStore users, IConfiguration config) : PageModel
     [BindProperty]
     public InputModel Input { get; set; } = new();
 
-    public async Task OnGetAsync(string? bffReturnUrl = null)
+    public void OnGet(string? bffReturnUrl = null)
     {
         Input.BffReturnUrl = bffReturnUrl ?? "/";
     }
@@ -32,7 +32,7 @@ public class IndexModel(UserStore users, IConfiguration config) : PageModel
         }
 
         var (success, error) = await users.RegisterAsync(
-            Input.Username, Input.Password, Input.DisplayName, Input.Email, Input.Role);
+            Input.Username, Input.Password, Input.DisplayName, Input.Email, UserRole.Viewer);
 
         if (!success)
         {

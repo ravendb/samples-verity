@@ -39,7 +39,7 @@ public class Api(
     {
         var sub = GetSubjectFromBearer(req);
         if (sub is null) return null;
-        return await session.LoadAsync<User>($"users/{sub}", req.HttpContext.RequestAborted);
+        return await session.LoadAsync<User>(User.BuildId(sub), req.HttpContext.RequestAborted);
     }
     private static bool CanAccessCompany(User user, string companyId) =>
     user.Role == UserRole.Admin ||
@@ -219,7 +219,7 @@ public class Api(
         if (sub is null)
             return new UnauthorizedResult();
 
-        var id = $"users/{sub}";
+        var id = User.BuildId(sub);
         var user = await session.LoadAsync<User>(id, req.HttpContext.RequestAborted);
 
         if (user is null)
@@ -261,7 +261,7 @@ public class Api(
         if (dto is null)
             return new BadRequestObjectResult("Invalid request body.");
 
-        var id = $"users/{sub}";
+        var id = User.BuildId(sub);
         var user = await session.LoadAsync<User>(id, req.HttpContext.RequestAborted);
         if (user is null)
             return new NotFoundObjectResult("User profile not found. Call GET /api/users/me first.");
@@ -439,7 +439,8 @@ public class Api(
         var audit = await session.LoadAsync<Audit>(body.AuditId, req.HttpContext.RequestAborted);
         if (audit is null) return new NotFoundObjectResult($"Audit '{body.AuditId}' not found.");
         var report = await session.LoadAsync<Report>(audit.ReportId, req.HttpContext.RequestAborted);
-        if (!CanAccessCompany(currentUser, report?.CompanyId ?? ""))
+        if (report is null) return new NotFoundObjectResult($"Report '{audit.ReportId}' not found.");
+        if (!CanAccessCompany(currentUser, report.CompanyId))
             return new ObjectResult("Access to this company is not allowed.") { StatusCode = 403 };
         await store.Operations.SendAsync(
             new RevertRevisionsByIdOperation(body.AuditId, body.ChangeVector),
@@ -466,7 +467,8 @@ public class Api(
         var currentUser = await GetCurrentUserAsync(req);
         if (currentUser is null) return new UnauthorizedResult();
         var report = await session.LoadAsync<Report>(audit.ReportId, req.HttpContext.RequestAborted);
-        if (!CanAccessCompany(currentUser, report?.CompanyId ?? ""))
+        if (report is null) return new NotFoundObjectResult($"Report '{audit.ReportId}' not found.");
+        if (!CanAccessCompany(currentUser, report.CompanyId))
             return new ObjectResult("Access to this company is not allowed.") { StatusCode = 403 };
         // RavenDB includes the current version as the first revision — no need to fetch it separately
         var revisions = await session.Advanced.Revisions
@@ -501,7 +503,8 @@ public class Api(
         var currentUser = await GetCurrentUserAsync(req);
         if (currentUser is null) return new UnauthorizedResult();
         var report = await session.LoadAsync<Report>(audit.ReportId, req.HttpContext.RequestAborted);
-        if (!CanAccessCompany(currentUser, report?.CompanyId ?? ""))
+        if (report is null) return new NotFoundObjectResult($"Report '{audit.ReportId}' not found.");
+        if (!CanAccessCompany(currentUser, report.CompanyId))
             return new ObjectResult("Access to this company is not allowed.") { StatusCode = 403 };
         return new JsonResult(audit);
     }
@@ -530,7 +533,7 @@ public class Api(
         if (body is null || !Enum.TryParse<UserRole>(body.Role, out var newRole))
             return new BadRequestObjectResult("Provide 'role': Viewer, Analyst, or Admin.");
 
-        var user = await session.LoadAsync<User>($"users/{subjectId}", req.HttpContext.RequestAborted);
+        var user = await session.LoadAsync<User>(User.BuildId(subjectId), req.HttpContext.RequestAborted);
         if (user is null) return new NotFoundObjectResult($"User '{subjectId}' not found.");
 
         user.Role = newRole;
@@ -548,7 +551,7 @@ public class Api(
         if (body is null)
             return new BadRequestObjectResult("Provide 'companyIds' array.");
 
-        var user = await session.LoadAsync<User>($"users/{subjectId}", req.HttpContext.RequestAborted);
+        var user = await session.LoadAsync<User>(User.BuildId(subjectId), req.HttpContext.RequestAborted);
         if (user is null) return new NotFoundObjectResult($"User '{subjectId}' not found.");
 
         user.CompanyIds = body.CompanyIds ?? [];
@@ -584,6 +587,7 @@ public class Api(
     }
 
     // GET /api/audit/stream — SSE: push new AuditNotifications to client
+    [Authorize]
     [Function(nameof(StreamAuditEvents))]
     public async Task StreamAuditEvents(
         [HttpTrigger("get", Route = "audit/stream")] HttpRequest req)
@@ -626,6 +630,7 @@ public class Api(
     }
 
     // GET /api/report/stream — SSE: push new AuditNotifications to client
+    [Authorize]
     [Function(nameof(StreamReportEvents))]
     public async Task StreamReportEvents(
         [HttpTrigger("get", Route = "report/stream")] HttpRequest req)

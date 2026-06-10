@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Middleware;
+using System.Collections.Concurrent;
 using System.Reflection;
 using System.Security.Claims;
 
@@ -56,25 +57,33 @@ public sealed class AuthMiddleware : IFunctionsWorkerMiddleware
         await next(context);
     }
 
-    // Resolves the function entry point (e.g. "RavenDB.Samples.Verity.App.Api.CreateAudit")
-    // to a MethodInfo and returns the [Authorize] attribute if present.
+    // Cached per entry-point string — reflection runs once per unique function, not per request.
+    private static readonly ConcurrentDictionary<string, AuthorizeAttribute?> _authorizeCache = new();
+
     private static AuthorizeAttribute? GetAuthorizeAttribute(FunctionContext context)
     {
-        var ep  = context.FunctionDefinition.EntryPoint; // "Namespace.Class.Method"
-        var dot = ep.LastIndexOf('.');
-        if (dot < 0) return null;
+        var entryPoint = context.FunctionDefinition.EntryPoint;
+        if (string.IsNullOrWhiteSpace(entryPoint))
+            return null;
 
-        var typeName   = ep[..dot];
-        var methodName = ep[(dot + 1)..];
+        return _authorizeCache.GetOrAdd(entryPoint, static ep =>
+        {
+            var dot = ep.LastIndexOf('.');
+            if (dot < 0) return null;
 
-        var type = AppDomain.CurrentDomain
-            .GetAssemblies()
-            .SelectMany(a => { try { return a.GetTypes(); } catch { return []; } })
-            .FirstOrDefault(t => t.FullName == typeName);
+            var typeName   = ep[..dot];
+            var methodName = ep[(dot + 1)..];
 
-        var method = type?.GetMethod(methodName, BindingFlags.Public | BindingFlags.Instance);
+            var type = AppDomain.CurrentDomain
+                .GetAssemblies()
+                .SelectMany(a => { try { return a.GetTypes(); } catch { return []; } })
+                .FirstOrDefault(t => t.FullName == typeName);
 
-        return method?.GetCustomAttribute<AuthorizeAttribute>()
-            ?? type?.GetCustomAttribute<AuthorizeAttribute>();
+            // Include Static so static entry points are not silently skipped.
+            var method = type?.GetMethod(methodName, BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static);
+
+            return method?.GetCustomAttribute<AuthorizeAttribute>()
+                ?? type?.GetCustomAttribute<AuthorizeAttribute>();
+        });
     }
 }

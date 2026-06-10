@@ -2,44 +2,53 @@
  * Minimal API helper
  */
 
+import { url } from "inspector/promises";
+
 export interface PagedResult<T> {
-	items:      T[];
-	page:       number;
-	pageSize:   number;
-	totalPages: number;
+  items: T[];
+  page: number;
+  pageSize: number;
+  totalPages: number;
 }
 
 // API calls use relative paths — BFF proxies them to Azure Functions.
-export const API_BASE_URL: string = '';
+export const API_BASE_URL: string = "";
 
 export function apiUrl(path: string): string {
-	const base = API_BASE_URL.endsWith('/')
-		? API_BASE_URL.slice(0, -1)
-		: API_BASE_URL;
+  const base = API_BASE_URL.endsWith("/")
+    ? API_BASE_URL.slice(0, -1)
+    : API_BASE_URL;
 
-	const route = path.startsWith('/') ? path : `/${path}`;
+  const route = path.startsWith("/") ? path : `/${path}`;
 
-	return `${base}${route}`;
+  return `${base}${route}`;
 }
 
-export async function callApi<T>(path: string, options?: RequestInit): Promise<T> {
-	const res = await fetch(apiUrl(path), options);
+export async function callApi<T>(
+  path: string,
+  options?: RequestInit,
+): Promise<T> {
+  // api.ts — all callApi's have to send the same headers
+  const res = await fetch(apiUrl(path), {
+    ...options,
+    headers: { "X-CSRF": "1", ...options?.headers },
+  });
 
-	if (res.status === 401) {
-		window.location.href = `/bff/login?returnUrl=${encodeURIComponent(window.location.pathname + window.location.search)}`;
-		return new Promise(() => {}); // never resolves — navigation takes over
-	}
+  if (res.status === 401) {
+    window.location.href = `/bff/login?returnUrl=${encodeURIComponent(window.location.pathname + window.location.search)}`;
+    return new Promise(() => {}); // never resolves — navigation takes over
+  }
 
-	if (!res.ok) {
-		const txt = await res.text().catch(() => '');
-		throw new Error(`HTTP ${res.status} ${res.statusText} ${txt}`);
-	}
+  if (!res.ok) {
+    const txt = await res.text().catch(() => "");
+    throw new Error(`HTTP ${res.status} ${res.statusText} ${txt}`);
+  }
 
-	const ct = res.headers.get('content-type') || '';
-	if (ct.includes('application/json')) {
-		return (await res.json()) as T;
-	}
+  const ct = res.headers.get("content-type") || "";
+  if (ct.includes("application/json")) {
+    return (await res.json()) as T;
+  }
 
-	// fallback to plain text for non-JSON responses
-	return (await res.text()) as unknown as T;
+  // fallback to plain text for non-JSON responses
+  return (await res.text()) as unknown as T;
 }
