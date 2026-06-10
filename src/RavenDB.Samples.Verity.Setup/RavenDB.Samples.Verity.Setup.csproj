@@ -8,8 +8,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="CommunityToolkit.Aspire.RavenDB.Client" Version="13.1.1" />
-    <PackageReference Include="RavenDB.Client" Version="7.2.2" />
+    <PackageReference Include="CommunityToolkit.Aspire.RavenDB.Client" Version="13.4.0" />
+    <PackageReference Include="RavenDB.Client" Version="7.2.3" />
     <PackageReference Include="RavenMigrations" Version="6.0.2" />
   </ItemGroup>
 
