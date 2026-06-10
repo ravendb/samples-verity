@@ -49,7 +49,8 @@ builder.Services
     {
         options.Authority = identityUrl;
         options.ClientId = "verity-bff";
-        options.ClientSecret = builder.Configuration["Oidc:ClientSecret"] ?? "bff-secret";
+        options.ClientSecret = builder.Configuration["Oidc:ClientSecret"]
+             ?? (builder.Environment.IsDevelopment() ? "bff-secret" : throw new InvalidOperationException("Missing configuration: Oidc:ClientSecret"));
         options.ResponseType = "code";
         options.ResponseMode = "query";
         options.RequireHttpsMetadata = !builder.Environment.IsDevelopment();
@@ -98,7 +99,8 @@ app.MapPost("/bff/register", async (HttpRequest req, IHttpClientFactory http) =>
 // ApiTokenTransformer reads the access token from the session cookie and adds
 // it as a Bearer header, implementing the BFF token-forwarding pattern without YARP.
 app.MapForwarder("/api/{**catch-all}", apiUrl,
-    new ForwarderRequestConfig(), new ApiTokenTransformer());
+    new ForwarderRequestConfig(), new ApiTokenTransformer())
+    .AsBffApiEndpoint();  // ← forces X-CSRF header
 
 // /* → Vite dev server (plain proxy, WebSocket/HMR included).
 app.MapForwarder("/{**catch-all}", frontendUrl);

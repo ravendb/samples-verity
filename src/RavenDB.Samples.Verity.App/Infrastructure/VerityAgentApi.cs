@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Azure.Functions.Worker;
@@ -20,6 +21,7 @@ public class VerityAgentApi(
 {
     // GET /api/agent/audit/context?reportId=Reports/1-A&userId=Users/Acme/John+Smith
     // Returns the structured context the frontend injects as the opening message to the agent.
+    [Authorize(Roles = nameof(UserRole.Admin) + "," + nameof(UserRole.Analyst))]
     [Function(nameof(GetAuditAgentContext))]
     public async Task<IActionResult> GetAuditAgentContext(
         [HttpTrigger("get", Route = "agent/audit/context")] HttpRequest req)
@@ -30,9 +32,20 @@ public class VerityAgentApi(
         if (string.IsNullOrWhiteSpace(reportId) || string.IsNullOrWhiteSpace(userId))
             return new BadRequestObjectResult("Provide 'reportId' and 'userId' query parameters.");
 
+        var sub = req.HttpContext.User.FindFirst("sub")?.Value;
+        if (string.IsNullOrWhiteSpace(sub))
+            return new UnauthorizedResult();
+
+        var currentUser = await session.LoadAsync<User>(User.BuildId(sub), req.HttpContext.RequestAborted);
+        if (currentUser is null)
+            return new UnauthorizedResult();
+
         var report = await session.LoadAsync<Report>(reportId, req.HttpContext.RequestAborted);
         if (report is null)
             return new NotFoundObjectResult($"Report '{reportId}' not found.");
+
+        if (!CanAccessCompany(currentUser, report.CompanyId))
+            return new ObjectResult("Access to this company is not allowed.") { StatusCode = 403 };
 
         var user = await session.LoadAsync<User>(userId, req.HttpContext.RequestAborted);
         if (user is null)
@@ -85,12 +98,17 @@ public class VerityAgentApi(
     }
 
     // POST /api/agent/audit/generate
-    // One-shot endpoint: given a reportId and userId it builds the context and asks the AI
+    // One-shot endpoint: given a reportId it builds the context and asks the AI
     // to produce a draft audit text. Returns { notes: string } — no conversation.
+    [Authorize(Roles = nameof(UserRole.Admin) + "," + nameof(UserRole.Analyst))]
     [Function(nameof(GenerateAuditNotes))]
     public async Task<IActionResult> GenerateAuditNotes(
         [HttpTrigger("post", Route = "agent/audit/generate")] HttpRequest req)
     {
+        var sub = req.HttpContext.User.FindFirst("sub")?.Value;
+        if (string.IsNullOrWhiteSpace(sub))
+            return new UnauthorizedResult();
+
         GenerateAuditRequest? body;
         try
         {
@@ -104,16 +122,16 @@ public class VerityAgentApi(
             return new BadRequestObjectResult("Invalid JSON body.");
         }
 
-        if (body is null || string.IsNullOrWhiteSpace(body.ReportId) || string.IsNullOrWhiteSpace(body.UserId))
-            return new BadRequestObjectResult("Provide 'reportId' and 'userId'.");
+        if (body is null || string.IsNullOrWhiteSpace(body.ReportId))
+            return new BadRequestObjectResult("Provide 'reportId'.");
 
         var report = await session.LoadAsync<Report>(body.ReportId, req.HttpContext.RequestAborted);
         if (report is null)
             return new NotFoundObjectResult($"Report '{body.ReportId}' not found.");
 
-        var user = await session.LoadAsync<User>($"users/{body.UserId}", req.HttpContext.RequestAborted);
+        var user = await session.LoadAsync<User>(User.BuildId(sub), req.HttpContext.RequestAborted);
         if (user is null)
-            return new NotFoundObjectResult($"User '{body.UserId}' not found.");
+            return new UnauthorizedResult();
 
         // Load HTML attachment, strip tags, truncate to 40k chars
         var attachmentResult = await session.Advanced.Attachments.GetAsync(
@@ -194,10 +212,19 @@ public class VerityAgentApi(
 
     // POST /api/agent/audit/save
     // Action endpoint invoked by the RavenDB AI agent when it executes the SaveAudit action.
+    [Authorize(Roles = nameof(UserRole.Admin) + "," + nameof(UserRole.Analyst))]
     [Function(nameof(AgentSaveAudit))]
     public async Task<IActionResult> AgentSaveAudit(
         [HttpTrigger("post", Route = "agent/audit/save")] HttpRequest req)
     {
+        var sub = req.HttpContext.User.FindFirst("sub")?.Value;
+        if (string.IsNullOrWhiteSpace(sub))
+            return new UnauthorizedResult();
+
+        var currentUser = await session.LoadAsync<User>(User.BuildId(sub), req.HttpContext.RequestAborted);
+        if (currentUser is null)
+            return new UnauthorizedResult();
+
         VeritySaveAuditArgs? args;
         try
         {
@@ -222,6 +249,9 @@ public class VerityAgentApi(
         if (company is null)
             return new NotFoundObjectResult($"Company '{report.CompanyId}' not found.");
 
+        if (!CanAccessCompany(currentUser, company.Id))
+            return new ObjectResult("Access to this company is not allowed.") { StatusCode = 403 };
+
         var auditId = Audit.BuildId(company, report);
 
         var audit = await session.LoadAsync<Audit>(auditId, req.HttpContext.RequestAborted);
@@ -233,11 +263,12 @@ public class VerityAgentApi(
             await session.StoreAsync(audit, req.HttpContext.RequestAborted);
         }
 
-        audit!.AuditorName = args.AuditorName;
-        audit.AuditorSurname = args.AuditorSurname;
-        audit.AuditorEmail = args.AuditorEmail;
-        audit.AuditString = args.AuditString;
-        audit.GeneratedByAi = true;
+        // Auditor identity is taken from the authenticated user, not the posted body.
+        audit!.AuditorName    = currentUser.Name;
+        audit.AuditorSurname  = currentUser.Surname;
+        audit.AuditorEmail    = currentUser.Email;
+        audit.AuditString     = args.AuditString;
+        audit.GeneratedByAi   = true;
 
         await session.SaveChangesAsync(req.HttpContext.RequestAborted);
 
@@ -245,13 +276,16 @@ public class VerityAgentApi(
 
         return new JsonResult(audit) { StatusCode = isNew ? StatusCodes.Status201Created : StatusCodes.Status200OK };
     }
+
+    private static bool CanAccessCompany(User user, string companyId) =>
+        user.Role == UserRole.Admin ||
+        (user.Role == UserRole.Analyst && user.CompanyIds.Contains(companyId));
 }
 
 // ── Request DTOs ─────────────────────────────────────────────
 public record GenerateAuditRequest
 {
     public string ReportId { get; init; } = "";
-    public string UserId { get; init; } = "";
 }
 
 // ── Context DTOs ─────────────────────────────────────────────

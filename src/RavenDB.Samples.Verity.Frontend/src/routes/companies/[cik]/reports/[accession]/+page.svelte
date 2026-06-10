@@ -74,7 +74,7 @@
     if (!selectedUser || !report) return;
     agentStatus = 'loading';
     try {
-      formNotes   = await generateAuditDraft(report.id, selectedUser);
+      formNotes   = await generateAuditDraft(report.id);
       notesFromAi = true;
       agentStatus = 'idle';
     } catch {
