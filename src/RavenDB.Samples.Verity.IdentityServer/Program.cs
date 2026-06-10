@@ -11,8 +11,8 @@ var builder = WebApplication.CreateBuilder(args);
 builder.AddServiceDefaults();
 builder.Services.AddRazorPages();
 
-// Frontend sends role as a string ("User" / "Employee") — configure minimal-API
-// JSON deserialization to accept string enum values instead of numeric ones.
+// Allow minimal-API JSON deserialization of enum values sent as strings (e.g. "Viewer", "Analyst")
+// instead of numeric values.
 builder.Services.ConfigureHttpJsonOptions(o =>
     o.SerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 
@@ -30,17 +30,20 @@ builder.Services.AddTransient<IEventSink, RavenEventSink>();
 // (HTTPS). In dev we run on plain HTTP so the browser rejects those cookies and
 // the user appears unauthenticated on the very next request. Override every
 // outgoing SameSite=None cookie at middleware level before headers are sent.
-builder.Services.Configure<CookiePolicyOptions>(options =>
+if (builder.Environment.IsDevelopment())
 {
-    options.OnAppendCookie = ctx =>
+    builder.Services.Configure<CookiePolicyOptions>(options =>
     {
-        if (ctx.CookieOptions.SameSite == SameSiteMode.None)
+        options.OnAppendCookie = ctx =>
         {
-            ctx.CookieOptions.SameSite = SameSiteMode.Lax;
-            ctx.CookieOptions.Secure = false;
-        }
-    };
-});
+            if (ctx.CookieOptions.SameSite == SameSiteMode.None)
+            {
+                ctx.CookieOptions.SameSite = SameSiteMode.Lax;
+                ctx.CookieOptions.Secure = false;
+            }
+        };
+    });
+}
 
 builder.Services
     .AddIdentityServer(opt =>
@@ -87,7 +90,7 @@ builder.Services
     })
     .AddInMemoryIdentityResources(IdentityConfig.IdentityResources)
     .AddInMemoryApiScopes(IdentityConfig.ApiScopes)
-    .AddInMemoryApiResources(IdentityConfig.ApiResources)   // ← DODAJ
+    .AddInMemoryApiResources(IdentityConfig.ApiResources)
     .AddInMemoryClients(IdentityConfig.GetClients(bffBaseUrl));
 
 var app = builder.Build();

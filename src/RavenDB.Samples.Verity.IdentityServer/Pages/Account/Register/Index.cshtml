@@ -211,11 +211,11 @@
             <p class="section-label">Account type</p>
             <div class="role-group">
                 <div class="role-option">
-                    <input type="radio" asp-for="Input.Role" id="role-user" value="User" />
+                    <input type="radio" asp-for="Input.Role" id="role-user" value="Viewer" />
                     <label for="role-user">Regular user</label>
                 </div>
                 <div class="role-option">
-                    <input type="radio" asp-for="Input.Role" id="role-employee" value="Employee" />
+                    <input type="radio" asp-for="Input.Role" id="role-employee" value="Analyst" />
                     <label for="role-employee">Company employee</label>
                 </div>
             </div>
@@ -231,8 +231,10 @@
             (function () {
                 const radios = document.querySelectorAll('input[name="Input.Role"]');
                 const companyField = document.getElementById('company-field');
+                if (!companyField) return;
                 const companyInput = companyField.querySelector('input');
 
+                if (!companyInput) return;
                 function update() {
                     const isEmployee = document.getElementById('role-employee').checked;
                     companyField.style.display = isEmployee ? 'block' : 'none';

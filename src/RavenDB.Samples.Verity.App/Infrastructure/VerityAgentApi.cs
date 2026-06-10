@@ -25,7 +25,7 @@ public class VerityAgentApi(
         [HttpTrigger("get", Route = "agent/audit/context")] HttpRequest req)
     {
         var reportId = req.Query["reportId"].ToString().Trim();
-        var userId   = req.Query["userId"].ToString().Trim();
+        var userId = req.Query["userId"].ToString().Trim();
 
         if (string.IsNullOrWhiteSpace(reportId) || string.IsNullOrWhiteSpace(userId))
             return new BadRequestObjectResult("Provide 'reportId' and 'userId' query parameters.");
@@ -64,18 +64,18 @@ public class VerityAgentApi(
         {
             Auditor = new AuditAgentAuditor
             {
-                UserId  = user.Id,
-                Name    = user.Name,
+                UserId = user.Id,
+                Name = user.Name,
                 Surname = user.Surname,
-                Email   = user.Email
+                Email = user.Email
             },
             Report = new AuditAgentReport
             {
-                ReportId        = report.Id,
-                FormType        = report.FormType,
-                Year            = report.Year,
-                Quarter         = report.Quarter,
-                ReportDate      = report.ReportDate,
+                ReportId = report.Id,
+                FormType = report.FormType,
+                Year = report.Year,
+                Quarter = report.Quarter,
+                ReportDate = report.ReportDate,
                 AccessionNumber = report.AccessionNumber
             },
             ReportText = reportText
@@ -153,14 +153,14 @@ public class VerityAgentApi(
 
         var requestPayload = new
         {
-            model    = "gpt-4o-mini",
+            model = "gpt-4o-mini",
             messages = new[]
             {
                 new { role = "system", content = systemPrompt },
                 new { role = "user",   content = userMessage  }
             },
             max_completion_tokens = 1500,
-            temperature           = 0.3
+            temperature = 0.3
         };
 
         var httpClient = httpClientFactory.CreateClient();
@@ -233,11 +233,11 @@ public class VerityAgentApi(
             await session.StoreAsync(audit, req.HttpContext.RequestAborted);
         }
 
-        audit!.AuditorName    = args.AuditorName;
-        audit.AuditorSurname  = args.AuditorSurname;
-        audit.AuditorEmail    = args.AuditorEmail;
-        audit.AuditString     = args.AuditString;
-        audit.GeneratedByAi   = true;
+        audit!.AuditorName = args.AuditorName;
+        audit.AuditorSurname = args.AuditorSurname;
+        audit.AuditorEmail = args.AuditorEmail;
+        audit.AuditString = args.AuditString;
+        audit.GeneratedByAi = true;
 
         await session.SaveChangesAsync(req.HttpContext.RequestAborted);
 
@@ -251,31 +251,31 @@ public class VerityAgentApi(
 public record GenerateAuditRequest
 {
     public string ReportId { get; init; } = "";
-    public string UserId   { get; init; } = "";
+    public string UserId { get; init; } = "";
 }
 
 // ── Context DTOs ─────────────────────────────────────────────
 public record AuditAgentAuditor
 {
-    public string UserId  { get; init; } = "";
-    public string Name    { get; init; } = "";
+    public string UserId { get; init; } = "";
+    public string Name { get; init; } = "";
     public string Surname { get; init; } = "";
-    public string Email   { get; init; } = "";
+    public string Email { get; init; } = "";
 }
 
 public record AuditAgentReport
 {
-    public string  ReportId        { get; init; } = "";
-    public string  FormType        { get; init; } = "";
-    public int?    Year            { get; init; }
-    public int?    Quarter         { get; init; }
-    public string  ReportDate      { get; init; } = "";
-    public string  AccessionNumber { get; init; } = "";
+    public string ReportId { get; init; } = "";
+    public string FormType { get; init; } = "";
+    public int? Year { get; init; }
+    public int? Quarter { get; init; }
+    public string ReportDate { get; init; } = "";
+    public string AccessionNumber { get; init; } = "";
 }
 
 public record AuditAgentContext
 {
-    public AuditAgentAuditor Auditor    { get; init; } = new();
+    public AuditAgentAuditor Auditor { get; init; } = new();
     public AuditAgentReport Report { get; init; } = new();
     public string ReportText { get; init; } = "";
 }

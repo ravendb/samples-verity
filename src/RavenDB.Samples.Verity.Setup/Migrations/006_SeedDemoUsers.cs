@@ -21,7 +21,8 @@ public sealed class SeedDemoUsers(MigrationContext context) : Migration
             .OrderBy(c => c.Name)
             .Take(2)
             .ToListAsync();
-
+        if (companies.Count < 2)
+            throw new InvalidOperationException("SeedDemoUsers requires at least 2 companies. Run the company import migration first.");
         var hasher = new PasswordHasher<User>();
         static User Make(Action<User> init)
         {
@@ -32,7 +33,7 @@ public sealed class SeedDemoUsers(MigrationContext context) : Migration
         }
         var user = new User[]
         {
-            Make(u=> {u.Username = "alice"; u.Name = "Alice"; u.Surname = "Smith"; u.Email = "alice@verity.demo"; u.Role = UserRole.Admin; u.CompanyIds = [companies[0].Id];}),
+            Make(u=> {u.Username = "alice"; u.Name = "Alice"; u.Surname = "Smith"; u.Email = "alice@verity.demo"; u.Role = UserRole.Admin;}),
             Make(u=> {u.Username = "bob"; u.Name = "Bob"; u.Surname = "Johnson"; u.Email = "bob@verity.demo"; u.Role = UserRole.Analyst; u.CompanyIds = [companies[0].Id];}),
             Make(u=> {u.Username = "carol"; u.Name = "Carol"; u.Surname = "Williams"; u.Email = "carol@verity.demo"; u.Role = UserRole.Analyst; u.CompanyIds = [companies[1].Id];}),
             Make(u=> {u.Username = "dave"; u.Name = "Dave"; u.Surname = "Brown"; u.Email = "dave@verity.demo"; u.Role = UserRole.Analyst; u.CompanyIds = [companies[1].Id];}),

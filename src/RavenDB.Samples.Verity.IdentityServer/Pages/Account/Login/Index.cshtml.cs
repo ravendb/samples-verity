@@ -42,7 +42,7 @@ public class IndexModel(
                     new AuthenticationProperties
                     {
                         IsPersistent = true,
-                        ExpiresUtc   = DateTimeOffset.UtcNow.Add(TimeSpan.FromDays(1)),
+                        ExpiresUtc = DateTimeOffset.UtcNow.Add(TimeSpan.FromDays(1)),
                     });
 
                 if (context != null)
@@ -57,9 +57,9 @@ public class IndexModel(
 
             ErrorMessage = "Invalid username or password.";
         }
-        catch (Exception ex)
+        catch (Exception)
         {
-            ErrorMessage = $"Login error: {ex.Message}";
+            ErrorMessage = "Login error. Please try again.";
         }
 
         Input.Password = string.Empty;
@@ -68,8 +68,8 @@ public class IndexModel(
 
     public class InputModel
     {
-        public string  Username  { get; set; } = string.Empty;
-        public string  Password  { get; set; } = string.Empty;
+        public string Username { get; set; } = string.Empty;
+        public string Password { get; set; } = string.Empty;
         public string? ReturnUrl { get; set; }
     }
 }

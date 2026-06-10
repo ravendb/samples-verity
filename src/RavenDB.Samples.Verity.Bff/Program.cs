@@ -49,10 +49,10 @@ builder.Services
     {
         options.Authority = identityUrl;
         options.ClientId = "verity-bff";
-        options.ClientSecret = "bff-secret";
+        options.ClientSecret = builder.Configuration["Oidc:ClientSecret"] ?? "bff-secret";
         options.ResponseType = "code";
         options.ResponseMode = "query";
-        options.RequireHttpsMetadata = false;
+        options.RequireHttpsMetadata = !builder.Environment.IsDevelopment();
         options.GetClaimsFromUserInfoEndpoint = true;
         options.PushedAuthorizationBehavior = PushedAuthorizationBehavior.Require;
         options.MapInboundClaims = false;

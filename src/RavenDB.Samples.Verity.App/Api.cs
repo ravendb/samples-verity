@@ -32,8 +32,8 @@ public class Api(
 
     private static string? GetSubjectFromBearer(HttpRequest req)
     {
-        var claims = DecodeJwtClaims(req);
-        return claims.GetValueOrDefault("sub")?.FirstOrDefault();
+        return req.HttpContext.User.FindFirst("sub")?.Value
+              ?? DecodeJwtClaims(req).GetValueOrDefault("sub")?.FirstOrDefault();
     }
     private async Task<User?> GetCurrentUserAsync(HttpRequest req)
     {
@@ -330,7 +330,7 @@ public class Api(
 
         var paddedCik = SecEdgar.NormalizeCik(cik);
 
-        // najpierw szukamy istniejącej firmy
+        // First try to find an existing company
         var company = await session.Query<Company>().FirstOrDefaultAsync(c => c.Cik == paddedCik);
 
         var currentUser = await GetCurrentUserAsync(req);
@@ -338,7 +338,7 @@ public class Api(
 
         if (company is null)
         {
-            // tylko Admin może dodać nową firmę przez ten endpoint
+            // Only Admin can add a new company via this endpoint
             if (currentUser.Role != UserRole.Admin)
                 return new ObjectResult("Company not found. Only Admin can add new companies.") { StatusCode = 403 };
             company = await edgar.FetchAndSaveCompanyAsync(paddedCik, req.HttpContext.RequestAborted);

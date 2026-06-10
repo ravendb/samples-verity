@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { browser } from '$app/environment';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
 	import { loginUrl, register } from '$lib/auth';
@@ -7,7 +8,7 @@
 	const isRegister = $page.url.searchParams.get('tab') === 'register';
 
 	// If not explicitly on the register tab, redirect straight to BFF login
-	if (!isRegister) {
+	if (browser && !isRegister) {
 		goto(loginUrl(returnUrl), { replaceState: true });
 	}
 

@@ -32,7 +32,7 @@ public class IndexModel(UserStore users, IConfiguration config) : PageModel
         }
 
         var (success, error) = await users.RegisterAsync(
-            Input.Username, Input.Password, Input.DisplayName, Input.Email);
+            Input.Username, Input.Password, Input.DisplayName, Input.Email, Input.Role);
 
         if (!success)
         {
