@@ -2,10 +2,16 @@ using Duende.IdentityServer;
 using Duende.IdentityServer.Configuration;
 using Duende.IdentityServer.Services;
 using Microsoft.IdentityModel.Tokens;
+using Raven.Client.Http;
 using RavenDB.Samples.Verity.IdentityServer;
 using RavenDB.Samples.Verity.IdentityServer.Endpoints;
 using RavenDB.Samples.Verity.Setup;
+using System.Net.Security;
 using System.Text.Json.Serialization;
+
+// Accept self-signed server certs — chain errors only; name and revocation checks still apply.
+RequestExecutor.RemoteCertificateValidationCallback +=
+    (_, _, _, errors) => (errors & ~SslPolicyErrors.RemoteCertificateChainErrors) == SslPolicyErrors.None;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.AddServiceDefaults();

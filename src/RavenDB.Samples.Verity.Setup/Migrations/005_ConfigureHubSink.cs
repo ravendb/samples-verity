@@ -6,7 +6,6 @@ using Raven.Client.ServerWide;
 using Raven.Client.ServerWide.Operations;
 using Raven.Migrations;
 using RavenDB.Samples.Verity.Model.HubSinks;
-using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 
 namespace RavenDB.Samples.Verity.Setup.Migrations;
@@ -23,24 +22,9 @@ public sealed class ConfigureHubSink(MigrationContext context) : Migration
         }
         catch (Exception ex) when (ex.Message.Contains("there is already a Hub Pull Replications with that name")) { }
 
-        // 2) Wygeneruj self-signed certyfikat dla Sinka
-        using var rsa = RSA.Create(2048);
-        var certRequest = new CertificateRequest(
-            "CN=VerityReplicationSink",
-            rsa,
-            HashAlgorithmName.SHA256,
-            RSASignaturePadding.Pkcs1);
-        certRequest.CertificateExtensions.Add(
-            new X509BasicConstraintsExtension(false, false, 0, true));
-
-        var cert = certRequest.CreateSelfSigned(
-            DateTimeOffset.UtcNow.AddDays(-1),
-            DateTimeOffset.UtcNow.AddYears(10));
-
-        // Klucz publiczny (DER, Base64) — rejestrujemy na Hubie
-        var publicCertBase64 = Convert.ToBase64String(cert.Export(X509ContentType.Cert));
-        // Pełny certyfikat z kluczem prywatnym (PFX, Base64) — używa Sink
-        var pfxBase64 = Convert.ToBase64String(cert.Export(X509ContentType.Pfx));
+        // 2) Certyfikat wstrzyknięty przez AppHost
+        var publicCertBase64 = context.SinkCertPublicBase64;
+        var pfxBase64 = context.SinkCertPfxBase64;
 
         // 3) Zarejestruj certyfikat Sinka na Hubie z dozwolonymi ścieżkami
         DocumentStore.Maintenance.Send(new RegisterReplicationHubAccessOperation(
@@ -53,10 +37,15 @@ public sealed class ConfigureHubSink(MigrationContext context) : Migration
             }));
 
         // 4) Utwórz bazę Sink (jeśli nie istnieje)
+        var serverCert = !string.IsNullOrEmpty(context.ServerCertPath) && File.Exists(context.ServerCertPath)
+            ? X509CertificateLoader.LoadPkcs12FromFile(context.ServerCertPath, null)
+            : null;
+
         using var sinkStore = new DocumentStore
         {
             Urls = [context.SinkServerUrl],
-            Database = Constants.DatabaseSinkName
+            Database = Constants.DatabaseSinkName,
+            Certificate = serverCert
         }.Initialize();
 
         try

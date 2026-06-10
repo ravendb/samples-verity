@@ -13,14 +13,21 @@ public sealed class ConfigureAi(MigrationContext context) : Migration
     public override void Up()
     {
         // TIME SERIES
-        DocumentStore.Maintenance.Send(new ConfigureTimeSeriesOperation(new TimeSeriesConfiguration
+        try
         {
-            Collections =
+            DocumentStore.Maintenance.Send(new ConfigureTimeSeriesOperation(new TimeSeriesConfiguration
             {
-                { "ApiUsageSession",       new TimeSeriesCollectionConfiguration() },
-                { "GlobalApiUsageLimiter", new TimeSeriesCollectionConfiguration() }
-            }
-        }));
+                Collections =
+                {
+                    { "ApiUsageSession",       new TimeSeriesCollectionConfiguration() },
+                    { "GlobalApiUsageLimiter", new TimeSeriesCollectionConfiguration() }
+                }
+            }));
+        }
+        catch (Exception ex) when (ex.Message.Contains("rollup") || ex.Message.Contains("retention") || ex.Message.Contains("license"))
+        {
+            Console.WriteLine($"[WARN] Time series configuration skipped — not supported by current license: {ex.Message}");
+        }
 
         // AI CONNECTION STRING
         const string connectionName = Constants.AiConnectionStringName;
@@ -37,11 +44,25 @@ public sealed class ConfigureAi(MigrationContext context) : Migration
         }));
 
         // AI AGENT
-        VerityAgentCreator.Create(DocumentStore, connectionName).GetAwaiter().GetResult();
+        try
+        {
+            VerityAgentCreator.Create(DocumentStore, connectionName).GetAwaiter().GetResult();
+        }
+        catch (Exception ex) when (ex.Message.Contains("license") || ex.Message.Contains("AI Agent"))
+        {
+            Console.WriteLine($"[WARN] AI Agent skipped — not supported by current license: {ex.Message}");
+        }
 
         // GEN AI TASKS
-        DocumentStore.Maintenance.Send(new AddGenAiOperation(new ChunkAnalysisTask(connectionName)));
-        DocumentStore.Maintenance.Send(new AddGenAiOperation(new ProfitabilityTask(connectionName)));
+        try
+        {
+            DocumentStore.Maintenance.Send(new AddGenAiOperation(new ChunkAnalysisTask(connectionName)));
+            DocumentStore.Maintenance.Send(new AddGenAiOperation(new ProfitabilityTask(connectionName)));
+        }
+        catch (Exception ex) when (ex.Message.Contains("license") || ex.Message.Contains("GenAi") || ex.Message.Contains("AI"))
+        {
+            Console.WriteLine($"[WARN] GenAI tasks skipped — not supported by current license: {ex.Message}");
+        }
     }
 
     public override void Down()

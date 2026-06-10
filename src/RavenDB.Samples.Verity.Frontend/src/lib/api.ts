@@ -2,8 +2,6 @@
  * Minimal API helper
  */
 
-import { url } from "inspector/promises";
-
 export interface PagedResult<T> {
   items: T[];
   page: number;

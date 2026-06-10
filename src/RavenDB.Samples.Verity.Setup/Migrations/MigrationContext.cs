@@ -8,4 +8,7 @@ public record MigrationContext(
     string AzureStorageConnectionString,
     string SecEdgarUserAgent,
     string SinkServerUrl,
-    string HubServerInternalUrl);
+    string HubServerInternalUrl,
+    string SinkCertPublicBase64,
+    string SinkCertPfxBase64,
+    string ServerCertPath);
