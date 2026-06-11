@@ -2,8 +2,15 @@ using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Builder;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Raven.Client.Http;
 using RavenDB.Samples.Verity.App.Infrastructure;
 using RavenDB.Samples.Verity.Setup;
+using System.Net.Security;
+
+// Accept self-signed server certs (chain validation fails because our dev CA is not trusted).
+// Name and revocation checks still apply — only chain-of-trust errors are forgiven.
+RequestExecutor.RemoteCertificateValidationCallback +=
+    (_, _, _, errors) => (errors & ~SslPolicyErrors.RemoteCertificateChainErrors) == SslPolicyErrors.None;
 
 var builder = FunctionsApplication.CreateBuilder(args);
 

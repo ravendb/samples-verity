@@ -187,7 +187,7 @@ public class VerityAgentApi(
             .GetProperty("content")
             .GetString() ?? string.Empty;
 
-        logger.LogInformation("Generated audit notes for report {ReportId} by user {UserId}", body.ReportId, body.UserId);
+        logger.LogInformation("Generated audit notes for report {ReportId} by user {UserId}", body.ReportId, user.Id);
 
         return new JsonResult(new { notes });
     }

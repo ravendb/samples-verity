@@ -59,6 +59,10 @@ A few steps are required to run the application locally.
       1. ApiKey: your OpenAI api key
       1. AzureStorage: your Azure storage connection string
       1. RavenDB License: your license which you can get here [RavenDB download](https://ravendb.net/download)
+1. To open RavenDB Studio in your browser (e.g. https://localhost:9534), install the generated client certificate:
+   1. After the AppHost has started, locate `certs/server.pfx` under `src/RavenDB.Samples.Verity.AppHost/bin/<Configuration>/<TFM>/certs/` (it is regenerated on every run, RavenDB runs without a persistent volume)
+   1. Import it into the Windows certificate store under **Current User > Personal** (no password)
+   1. Open RavenDB Studio — the browser will present the imported certificate and authenticate automatically
 
 ## Remarks
 
