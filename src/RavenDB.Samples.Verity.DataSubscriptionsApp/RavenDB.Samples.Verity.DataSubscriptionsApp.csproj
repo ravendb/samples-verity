@@ -8,11 +8,11 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="CommunityToolkit.Aspire.RavenDB.Client" Version="13.1.1" />
-    <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.7" />
-    <PackageReference Include="OpenTelemetry.Api" Version="1.15.3" />
-    <PackageReference Include="RavenDB.Client" Version="7.2.2" />
-    <PackageReference Include="Spectre.Console" Version="0.55.2" />
+    <PackageReference Include="CommunityToolkit.Aspire.RavenDB.Client" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" />
+    <PackageReference Include="OpenTelemetry.Api" />
+    <PackageReference Include="RavenDB.Client" />
+    <PackageReference Include="Spectre.Console" />
   </ItemGroup>
 
   <ItemGroup>

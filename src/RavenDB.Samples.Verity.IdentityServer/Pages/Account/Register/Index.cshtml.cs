@@ -61,8 +61,6 @@ public class IndexModel(UserStore users, IConfiguration config) : PageModel
         [Required]
         public string ConfirmPassword { get; set; } = string.Empty;
 
-        public UserRole Role { get; set; } = UserRole.Viewer;
-
         public string BffReturnUrl { get; set; } = "/";
     }
 }

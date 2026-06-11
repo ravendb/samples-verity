@@ -401,9 +401,10 @@ public class Api(
             await session.StoreAsync(audit, req.HttpContext.RequestAborted);
         }
 
-        audit!.AuditorName = body.AuditorName ?? string.Empty;
-        audit.AuditorSurname = body.AuditorSurname ?? string.Empty;
-        audit.AuditorEmail = body.AuditorEmail ?? string.Empty;
+        // Auditor identity is taken from the authenticated user, not the posted body.
+        audit!.AuditorName = currentUser.Name;
+        audit.AuditorSurname = currentUser.Surname;
+        audit.AuditorEmail = currentUser.Email;
         audit.AuditString = body.AuditString ?? string.Empty;
         audit.GeneratedByAi = body.GeneratedByAi;
 

@@ -89,43 +89,6 @@
                 border-color: #5b8fd4;
             }
 
-            .role-group {
-                display: flex;
-                gap: 1rem;
-                margin-bottom: 1rem;
-            }
-
-            .role-option {
-                flex: 1;
-            }
-
-            .role-option input[type=radio] {
-                display: none;
-            }
-
-            .role-option label {
-                display: block;
-                text-align: center;
-                padding: 0.6rem 0.5rem;
-                border: 1px solid #2e5c9a;
-                border-radius: 6px;
-                cursor: pointer;
-                font-size: 0.9rem;
-                color: #93b4d8;
-                margin-bottom: 0;
-                transition: background 0.15s, color 0.15s, border-color 0.15s;
-            }
-
-            .role-option input[type=radio]:checked+label {
-                background: #2e5c9a;
-                border-color: #5b8fd4;
-                color: #e8f0fe;
-            }
-
-            .role-option label:hover {
-                background: rgba(46, 92, 154, 0.3);
-            }
-
             button {
                 width: 100%;
                 padding: 0.7rem;
@@ -169,14 +132,6 @@
                 margin-top: -0.75rem;
                 margin-bottom: 1rem;
             }
-
-            .section-label {
-                font-size: 0.75rem;
-                color: #6a8fb5;
-                text-transform: uppercase;
-                letter-spacing: 0.05em;
-                margin-bottom: 0.5rem;
-            }
     </style>
 </head>
 
@@ -203,18 +158,6 @@
 
             <label asp-for="Input.ConfirmPassword">Confirm password</label>
             <input asp-for="Input.ConfirmPassword" type="password" autocomplete="new-password" />
-
-            <p class="section-label">Account type</p>
-            <div class="role-group">
-                <div class="role-option">
-                    <input type="radio" asp-for="Input.Role" id="role-user" value="Viewer" />
-                    <label for="role-user">Regular user</label>
-                </div>
-                <div class="role-option">
-                    <input type="radio" asp-for="Input.Role" id="role-employee" value="Analyst" />
-                    <label for="role-employee">Company employee</label>
-                </div>
-            </div>
 
             <button type="submit">Create Account</button>
         </form>

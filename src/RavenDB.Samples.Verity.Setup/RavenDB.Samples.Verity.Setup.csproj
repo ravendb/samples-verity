@@ -8,12 +8,11 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="CommunityToolkit.Aspire.RavenDB.Client" />
+    <PackageReference Include="RavenDB.Client" />
+    <PackageReference Include="RavenMigrations" />
     <!-- AspNetCore framework: PasswordHasher used by 006_SeedDemoUsers migration -->
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
-    <!-- RavenDB client wiring for the seeder worker (Aspire) -->
-    <PackageReference Include="CommunityToolkit.Aspire.RavenDB.Client" Version="13.1.1" />
-    <PackageReference Include="RavenDB.Client" Version="7.2.2" />
-    <PackageReference Include="RavenMigrations" Version="6.0.2" />
   </ItemGroup>
 
   <ItemGroup>

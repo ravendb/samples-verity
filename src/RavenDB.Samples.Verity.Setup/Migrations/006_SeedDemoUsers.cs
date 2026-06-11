@@ -49,6 +49,8 @@ public sealed class SeedDemoUsers(MigrationContext context) : Migration
 
     public override void Down()
     {
-
+        DocumentStore.Operations.Send(
+            new Raven.Client.Documents.Operations.DeleteByQueryOperation(
+                new Raven.Client.Documents.Queries.IndexQuery { Query = $"from {User.Collection} where Username in ('alice','bob','carol','dave','eve')" }));
     }
 }

@@ -10,9 +10,9 @@
   <ItemGroup>
     <!-- Duende.IdentityServer 7.x targets net8/net9 but works on net10 via forward-compat.
          Run: dotnet add package Duende.IdentityServer  to pull the latest version. -->
-    <PackageReference Include="Duende.IdentityServer" Version="7.4.7" />
-    <PackageReference Include="CommunityToolkit.Aspire.RavenDB.Client" Version="13.1.1" />
-    <PackageReference Include="RavenDB.Client" Version="7.2.2" />
+    <PackageReference Include="Duende.IdentityServer" />
+    <PackageReference Include="CommunityToolkit.Aspire.RavenDB.Client" />
+    <PackageReference Include="RavenDB.Client" />
   </ItemGroup>
 
   <ItemGroup>

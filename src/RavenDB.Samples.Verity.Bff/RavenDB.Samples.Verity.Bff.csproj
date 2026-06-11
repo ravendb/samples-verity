@@ -10,7 +10,7 @@
   <ItemGroup>
     <!-- Duende.BFF.Yarp pulls in Duende.BFF + YARP.
          Run: dotnet add package Duende.BFF.Yarp  to pull the latest version. -->
-    <PackageReference Include="Duende.BFF.Yarp" Version="4.1.2" />
+    <PackageReference Include="Duende.BFF.Yarp" />
   </ItemGroup>
 
   <ItemGroup>
