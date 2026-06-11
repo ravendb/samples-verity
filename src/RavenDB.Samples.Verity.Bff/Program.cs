@@ -95,6 +95,13 @@ app.MapPost("/bff/register", async (HttpRequest req, IHttpClientFactory http) =>
     return Results.Content(body, "application/json", statusCode: (int)response.StatusCode);
 }).AllowAnonymous();
 
+// SSE streaming endpoints — EventSource cannot send custom headers, so skip X-CSRF.
+// Auth is still enforced: unauthenticated requests get 401 from RequireAuthorization().
+app.MapForwarder("/api/audit/stream", apiUrl, new ForwarderRequestConfig(), new ApiTokenTransformer())
+    .RequireAuthorization();
+app.MapForwarder("/api/report/stream", apiUrl, new ForwarderRequestConfig(), new ApiTokenTransformer())
+    .RequireAuthorization();
+
 // /api/* → Azure Functions.
 // ApiTokenTransformer reads the access token from the session cookie and adds
 // it as a Bearer header, implementing the BFF token-forwarding pattern without YARP.

@@ -2,8 +2,6 @@
  * Minimal API helper
  */
 
-// (browser-only module; no Node imports)
-
 export interface PagedResult<T> {
   items: T[];
   page: number;
