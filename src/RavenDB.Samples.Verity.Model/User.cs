@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace RavenDB.Samples.Verity.Model;
 
 public class User : IDocument
@@ -20,6 +22,7 @@ public class User : IDocument
     public string Email { get; set; } = null!;
     public string? SubjectId { get; set; } // IS subject (sub claim); null for auditor placeholder users with no login
     public string? Username { get; set; } // login name, lowercase; null for auditor placeholder users with no login
+    [JsonIgnore]
     public string PasswordHash { get; set; } = string.Empty;
     public UserRole Role { get; set; } = UserRole.Viewer;
 }

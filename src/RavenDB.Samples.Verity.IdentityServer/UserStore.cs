@@ -2,6 +2,8 @@ using Duende.IdentityModel;
 using Microsoft.AspNetCore.Identity;
 using Raven.Client.Documents;
 using Raven.Client.Documents.Linq;
+using Raven.Client.Documents.Session;
+using Raven.Client.Exceptions;
 using RavenDB.Samples.Verity.Model;
 using System.Security.Claims;
 
@@ -42,13 +44,14 @@ public sealed class UserStore(IDocumentStore store)
             return (false, "Username already taken.");
 
         var subjectId = Guid.NewGuid().ToString();
+        var normalizedUsername = username.ToLowerInvariant();
         var parts = displayName.Split(' ', 2, StringSplitOptions.RemoveEmptyEntries);
 
         var user = new User
         {
             Id = User.BuildId(subjectId),
             SubjectId = subjectId,
-            Username = username.ToLowerInvariant(),
+            Username = normalizedUsername,
             Name = parts.ElementAtOrDefault(0) ?? username,
             Surname = parts.ElementAtOrDefault(1) ?? string.Empty,
             Email = email,
@@ -58,9 +61,26 @@ public sealed class UserStore(IDocumentStore store)
 
         user.PasswordHash = _hasher.HashPassword(user, password);
 
-        using var session = store.OpenAsyncSession();
+        using var session = store.OpenAsyncSession(new Raven.Client.Documents.Session.SessionOptions
+        {
+            TransactionMode = TransactionMode.ClusterWide,
+        });
+
+        // Atomically reserve the username via a compare-exchange key — guards against
+        // two concurrent registrations with the same username racing past the check above.
+        session.Advanced.ClusterTransaction.CreateCompareExchangeValue($"usernames/{normalizedUsername}", user.Id);
+
         await session.StoreAsync(user);
-        await session.SaveChangesAsync();
+
+        try
+        {
+            await session.SaveChangesAsync();
+        }
+        catch (ClusterTransactionConcurrencyException)
+        {
+            return (false, "Username already taken.");
+        }
+
         return (true, string.Empty);
     }
 

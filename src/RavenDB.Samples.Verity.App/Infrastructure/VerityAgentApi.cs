@@ -19,7 +19,7 @@ public class VerityAgentApi(
     IAsyncDocumentSession session,
     IHttpClientFactory httpClientFactory)
 {
-    // GET /api/agent/audit/context?reportId=Reports/1-A&userId=Users/Acme/John+Smith
+    // GET /api/agent/audit/context?reportId=Reports/1-A
     // Returns the structured context the frontend injects as the opening message to the agent.
     [Authorize(Roles = nameof(UserRole.Admin) + "," + nameof(UserRole.Analyst))]
     [Function(nameof(GetAuditAgentContext))]
@@ -27,10 +27,9 @@ public class VerityAgentApi(
         [HttpTrigger("get", Route = "agent/audit/context")] HttpRequest req)
     {
         var reportId = req.Query["reportId"].ToString().Trim();
-        var userId = req.Query["userId"].ToString().Trim();
 
-        if (string.IsNullOrWhiteSpace(reportId) || string.IsNullOrWhiteSpace(userId))
-            return new BadRequestObjectResult("Provide 'reportId' and 'userId' query parameters.");
+        if (string.IsNullOrWhiteSpace(reportId))
+            return new BadRequestObjectResult("Provide 'reportId' query parameter.");
 
         var sub = req.HttpContext.User.FindFirst("sub")?.Value;
         if (string.IsNullOrWhiteSpace(sub))
@@ -46,10 +45,6 @@ public class VerityAgentApi(
 
         if (!CanAccessCompany(currentUser, report.CompanyId))
             return new ObjectResult("Access to this company is not allowed.") { StatusCode = 403 };
-
-        var user = await session.LoadAsync<User>(userId, req.HttpContext.RequestAborted);
-        if (user is null)
-            return new NotFoundObjectResult($"User '{userId}' not found.");
 
         // Attempt to read the report HTML attachment for the agent to analyse
         var attachmentResult = await session.Advanced.Attachments.GetAsync(
@@ -77,10 +72,10 @@ public class VerityAgentApi(
         {
             Auditor = new AuditAgentAuditor
             {
-                UserId = user.Id,
-                Name = user.Name,
-                Surname = user.Surname,
-                Email = user.Email
+                UserId = currentUser.Id,
+                Name = currentUser.Name,
+                Surname = currentUser.Surname,
+                Email = currentUser.Email
             },
             Report = new AuditAgentReport
             {

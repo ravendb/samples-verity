@@ -20,7 +20,7 @@ public class IndexModel(
 
     public void OnGet(string? returnUrl = null, bool registered = false)
     {
-        Input.ReturnUrl = returnUrl;
+        Input.ReturnUrl = returnUrl ?? string.Empty;
         Registered = registered;
     }
 
@@ -28,7 +28,9 @@ public class IndexModel(
     {
         try
         {
-            var context = await interaction.GetAuthorizationContextAsync(Input.ReturnUrl);
+            var context = string.IsNullOrEmpty(Input.ReturnUrl)
+                ? null
+                : await interaction.GetAuthorizationContextAsync(Input.ReturnUrl);
 
             if (await users.ValidateCredentialsAsync(Input.Username, Input.Password))
             {
@@ -47,7 +49,7 @@ public class IndexModel(
                     });
 
                 if (context != null)
-                    return Redirect(Input.ReturnUrl!);
+                    return Redirect(Input.ReturnUrl);
 
                 if (Url.IsLocalUrl(Input.ReturnUrl))
                     return LocalRedirect(Input.ReturnUrl);
@@ -71,6 +73,6 @@ public class IndexModel(
     {
         public string Username { get; set; } = string.Empty;
         public string Password { get; set; } = string.Empty;
-        public string? ReturnUrl { get; set; }
+        public string ReturnUrl { get; set; } = string.Empty;
     }
 }

@@ -44,7 +44,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         opt.Authority = Environment.GetEnvironmentVariable(Constants.EnvVars.IdentityUrl)
                         ?? throw new InvalidOperationException($"No environment variable '{Constants.EnvVars.IdentityUrl}' found.");
         opt.Audience = "verity-api";
-        opt.RequireHttpsMetadata = false;
+        opt.RequireHttpsMetadata = !builder.Environment.IsDevelopment();
         opt.MapInboundClaims = false;
         opt.TokenValidationParameters.RoleClaimType = "role";
         opt.TokenValidationParameters.NameClaimType = "name";
