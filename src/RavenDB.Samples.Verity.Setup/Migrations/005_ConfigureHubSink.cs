@@ -22,11 +22,11 @@ public sealed class ConfigureHubSink(MigrationContext context) : Migration
         }
         catch (Exception ex) when (ex.Message.Contains("there is already a Hub Pull Replications with that name")) { }
 
-        // 2) Certyfikat wstrzyknięty przez AppHost
+        // 2) Certificate injected by AppHost
         var publicCertBase64 = context.SinkCertPublicBase64;
         var pfxBase64 = context.SinkCertPfxBase64;
 
-        // 3) Zarejestruj certyfikat Sinka na Hubie z dozwolonymi ścieżkami
+        // 3) Register Sink certificate on the Hub with allowed paths
         DocumentStore.Maintenance.Send(new RegisterReplicationHubAccessOperation(
             VerityReplicationHub.HubName,
             new ReplicationHubAccess
@@ -36,7 +36,7 @@ public sealed class ConfigureHubSink(MigrationContext context) : Migration
                 AllowedHubToSinkPaths = VerityReplicationSink.AllowedPaths
             }));
 
-        // 4) Utwórz bazę Sink (jeśli nie istnieje)
+        // 4) Create Sink database (if it doesn't exist)
         var serverCert = !string.IsNullOrEmpty(context.ServerCertPath) && File.Exists(context.ServerCertPath)
             ? X509CertificateLoader.LoadPkcs12FromFile(context.ServerCertPath, null)
             : null;
@@ -55,7 +55,7 @@ public sealed class ConfigureHubSink(MigrationContext context) : Migration
         }
         catch (Exception ex) when (ex.Message.Contains("already exists")) { }
 
-        // 5) Connection string na Sinku wskazujący na Hub
+        // 5) Connection string on the Sink pointing to the Hub
         var hubUrls = string.IsNullOrEmpty(context.HubServerInternalUrl)
             ? DocumentStore.Urls
             : [context.HubServerInternalUrl];
@@ -67,7 +67,7 @@ public sealed class ConfigureHubSink(MigrationContext context) : Migration
             TopologyDiscoveryUrls = hubUrls
         }));
 
-        // 6) Skonfiguruj Sink z certyfikatem i dozwolonymi ścieżkami
+        // 6) Configure the Sink with the certificate and allowed paths
         sinkStore.Maintenance.Send(new UpdatePullReplicationAsSinkOperation(new PullReplicationAsSink
         {
             Name = VerityReplicationSink.TaskName,

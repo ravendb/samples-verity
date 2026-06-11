@@ -12,8 +12,8 @@ RequestExecutor.RemoteCertificateValidationCallback +=
     (_, _, _, errors) => (errors & ~SslPolicyErrors.RemoteCertificateChainErrors) == SslPolicyErrors.None;
 
 // Env var names must match Constants.EnvVars in RavenDB.Samples.Verity.Setup
-const string envOpenAiApiKey                = "SAMPLES_VERITY_OPENAI_API_KEY";
-const string envSecEdgarUserAgent           = "SAMPLES_VERITY_SEC_EDGAR_USER_AGENT";
+const string envOpenAiApiKey                 = "SAMPLES_VERITY_OPENAI_API_KEY";
+const string envSecEdgarUserAgent            = "SAMPLES_VERITY_SEC_EDGAR_USER_AGENT";
 const string envAzureStorageConnectionString = "SAMPLES_VERITY_AZURE_STORAGE_CONNECTION_STRING";
 const string envSinkServerUrl                = "SAMPLES_VERITY_SINK_SERVER_URL";
 const string envHubServerInternalUrl         = "SAMPLES_VERITY_HUB_SERVER_INTERNAL_URL";
@@ -132,7 +132,12 @@ var seeder = builder.AddProject<RavenDB_Samples_Verity_Setup>("seeder")
     .WithEnvironment(envSinkCertPfxBase64, sinkCertPfxBase64)
     // Server cert path on the host — seeder uses it as client cert to authenticate to RavenDB
     .WithEnvironment(envServerCertPath, serverCertPath)
-    .WithEnvironment(envRavenDbClientCertificatePath, serverCertPath);
+    // Seeder is a generic Host (not WebApplication), so Aspire doesn't auto-populate
+    // ASPNETCORE_ENVIRONMENT for it; without DOTNET_ENVIRONMENT the self-signed cert
+    // acceptance above never activates and database creation over the secured RavenDB
+    // connection fails the TLS handshake.
+    .WithEnvironment(envRavenDbClientCertificatePath, serverCertPath)
+    .WithEnvironment("DOTNET_ENVIRONMENT", "Development");
 
 // Verity App
 var functions = builder.AddAzureFunctionsProject<RavenDB_Samples_Verity_App>("app")
@@ -163,7 +168,10 @@ var functions = builder.AddAzureFunctionsProject<RavenDB_Samples_Verity_App>("ap
     .WithEnvironment(
         envHubServerInternalUrl,
         ReferenceExpression.Create($"https://localhost:{ravenEndpoint.Property(EndpointProperty.TargetPort)}"))
-    .WithEnvironment(envRavenDbClientCertificatePath, serverCertPath);
+    // Same DOTNET_ENVIRONMENT gap as seeder/subscriptions — needed for the Azure Functions
+    // host to activate the self-signed cert acceptance callback.
+    .WithEnvironment(envRavenDbClientCertificatePath, serverCertPath)
+    .WithEnvironment("DOTNET_ENVIRONMENT", "Development");
 
 // DataSubscriptionsApp — interactive Spectre.Console TUI, must run in its own console window
 // cmd /c start spawns a detached window so Aspire doesn't capture stdin/stdout
@@ -172,7 +180,11 @@ builder.AddExecutable("subscriptions", "cmd", "../RavenDB.Samples.Verity.DataSub
     .WithReference(sink)
     .WaitFor(sink)
     .WaitForCompletion(seeder)
-    .WithEnvironment(envRavenDbClientCertificatePath, serverCertPath);
+    .WithEnvironment(envRavenDbClientCertificatePath, serverCertPath)
+    // Unlike AddProject, AddExecutable does not inherit DOTNET_ENVIRONMENT from the AppHost —
+    // without it the self-signed cert acceptance in DataSubscriptionsApp/Program.cs never
+    // activates and the TLS handshake to the secured RavenDB sink is rejected.
+    .WithEnvironment("DOTNET_ENVIRONMENT", "Development");
 
 // Frontend
 builder.AddNpmApp("Frontend", "../RavenDB.Samples.Verity.Frontend", "dev")
