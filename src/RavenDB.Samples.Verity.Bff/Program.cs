@@ -90,8 +90,8 @@ app.MapPost("/bff/register", async (HttpRequest req, IHttpClientFactory http) =>
     var content = new StreamContent(req.Body);
     content.Headers.ContentType = new("application/json");
 
-    var response = await client.PostAsync($"{identityUrl}/api/register", content);
-    var body = await response.Content.ReadAsStringAsync();
+    var response = await client.PostAsync($"{identityUrl}/api/register", content, req.HttpContext.RequestAborted);
+    var body = await response.Content.ReadAsStringAsync(req.HttpContext.RequestAborted);
     return Results.Content(body, "application/json", statusCode: (int)response.StatusCode);
 }).AllowAnonymous();
 

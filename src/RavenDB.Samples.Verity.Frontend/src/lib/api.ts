@@ -26,11 +26,10 @@ export async function callApi<T>(
   path: string,
   options?: RequestInit,
 ): Promise<T> {
-  // api.ts — all callApi's have to send the same headers
-  const res = await fetch(apiUrl(path), {
-    ...options,
-    headers: { "X-CSRF": "1", ...options?.headers },
-  });
+  // Use Headers() so merging works correctly when options.headers is a Headers instance.
+  const headers = new Headers(options?.headers);
+  headers.set("X-CSRF", "1");
+  const res = await fetch(apiUrl(path), { ...options, headers });
 
   if (res.status === 401) {
     window.location.href = `/bff/login?returnUrl=${encodeURIComponent(window.location.pathname + window.location.search)}`;

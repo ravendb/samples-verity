@@ -1,7 +1,6 @@
 <script lang="ts">
 	import favicon from '$lib/assets/favicon.png';
 	import { apiUrl } from '$lib/api';
-	import AuthBar from '$lib/components/AuthBar.svelte';
 	import AuthModal from '$lib/components/AuthModal.svelte';
 	import { onMount, onDestroy } from 'svelte';
 	import { lastUpdatedReportId } from '$lib/stores/liveUpdates';
@@ -114,9 +113,6 @@
 </svelte:head>
 
 <samples-ui-wrapper sourceLink="https://github.com/ravendb/samples-verity" theme="dark">
-	<div slot="header-actions" class="header-auth">
-		<AuthBar />
-	</div>
 	{@render children()}
 </samples-ui-wrapper>
 
@@ -163,12 +159,6 @@
 		text-decoration: none;
 	}
 	:global(.verity-brand:hover) { opacity: 0.8; }
-
-	.header-auth {
-		display: flex;
-		align-items: center;
-		gap: 0.75rem;
-	}
 
 :global(input, button, select, textarea) {
 		font: inherit;

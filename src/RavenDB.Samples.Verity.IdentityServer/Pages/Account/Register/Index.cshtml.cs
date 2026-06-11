@@ -40,7 +40,10 @@ public class IndexModel(UserStore users, IConfiguration config) : PageModel
             return Page();
         }
 
-        var returnUrl = Uri.EscapeDataString(Input.BffReturnUrl ?? "/");
+        var rawReturn = Input.BffReturnUrl;
+        if (string.IsNullOrEmpty(rawReturn) || !rawReturn.StartsWith('/') || rawReturn.StartsWith("//"))
+            rawReturn = "/";
+        var returnUrl = Uri.EscapeDataString(rawReturn);
         return Redirect($"{_bffBaseUrl}/bff/login?returnUrl={returnUrl}");
     }
 
