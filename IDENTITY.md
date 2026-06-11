@@ -39,7 +39,7 @@ Two mechanisms are enabled on the `verity-bff` client:
 The browser never carries authorization parameters in the URL. Instead, the BFF pushes the full authorization request to IdentityServer's PAR endpoint first, receives a `request_uri`, and only that opaque reference appears in the browser redirect. This prevents parameter tampering and leakage via the referrer header or browser history.
 
 **Demonstrating Proof-of-Possession (DPoP)**
-Access tokens are bound to the BFF's RSA key pair. If an access token is intercepted in transit, it cannot be replayed by a different client — the recipient must prove possession of the private key that matches the public key in the token's `cnf` claim. The BFF generates a fresh RSA-PSS-SHA256 key pair on every startup.
+Access tokens are issued as DPoP-bound to the BFF's RSA key pair. This sample demonstrates DPoP at the client/issuer; the Azure Functions API validates JWTs but does not validate per-request DPoP proofs.
 
 ## Identity Events in RavenDB
 
