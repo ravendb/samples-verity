@@ -35,7 +35,8 @@ public class IndexModel(
                 var user = (await users.FindByUsernameAsync(Input.Username))!;
 
                 await HttpContext.SignInAsync(
-                    new IdentityServerUser(user.SubjectId)
+                    // Registered users always have a SubjectId set (see UserStore.RegisterAsync).
+                    new IdentityServerUser(user.SubjectId!)
                     {
                         AdditionalClaims = users.GetClaims(user).ToList(),
                     },

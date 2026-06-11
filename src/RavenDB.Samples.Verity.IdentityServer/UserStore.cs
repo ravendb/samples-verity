@@ -70,8 +70,8 @@ public sealed class UserStore(IDocumentStore store)
     {
         var claims = new List<Claim>
         {
-            new(JwtClaimTypes.Name,              user.Username),
-            new(JwtClaimTypes.PreferredUserName, user.Username),
+            new(JwtClaimTypes.Name,              user.Username ?? string.Empty),
+            new(JwtClaimTypes.PreferredUserName, user.Username ?? string.Empty),
             new(JwtClaimTypes.Email,             user.Email),
             new(JwtClaimTypes.GivenName,         user.Name),
             new(JwtClaimTypes.FamilyName,        user.Surname),

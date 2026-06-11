@@ -18,8 +18,8 @@ public class User : IDocument
     public string Name { get; set; } = null!;
     public string Surname { get; set; } = null!;
     public string Email { get; set; } = null!;
-    public string SubjectId { get; set; } = null!; // IS subject (sub claim)
-    public string Username { get; set; } = null!; // login name, lowercase
+    public string? SubjectId { get; set; } // IS subject (sub claim); null for auditor placeholder users with no login
+    public string? Username { get; set; } // login name, lowercase; null for auditor placeholder users with no login
     public string PasswordHash { get; set; } = string.Empty;
     public UserRole Role { get; set; } = UserRole.Viewer;
 }
