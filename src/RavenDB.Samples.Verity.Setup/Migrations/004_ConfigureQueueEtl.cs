@@ -21,14 +21,8 @@ public sealed class ConfigureQueueEtl(MigrationContext context) : Migration
             }
         }));
 
-        try
-        {
-            DocumentStore.Maintenance.Send(new AddEtlOperation<QueueConnectionString>(AuditRevisionQueueEtlTask.Create()));
-        }
-        catch (Exception ex) when (ex.Message.Contains("license") || ex.Message.Contains("Queue ETL"))
-        {
-            Console.WriteLine($"[WARN] Queue ETL skipped — not supported by current license: {ex.Message}");
-        }
+        DocumentStore.Maintenance.Send(new AddEtlOperation<QueueConnectionString>(AuditRevisionQueueEtlTask.Create()));
+
     }
 
     public override void Down()
