@@ -224,10 +224,10 @@ public class Api(
 
         if (user is null)
         {
-            var claims = DecodeJwtClaims(req);
-            var fullName = claims.GetValueOrDefault("name", []).FirstOrDefault() ?? "";
+            var principal = req.HttpContext.User;
+            var fullName = principal.FindFirst("name")?.Value ?? "";
             var parts = fullName.Split(' ', 2, StringSplitOptions.RemoveEmptyEntries);
-            var roleString = claims.GetValueOrDefault("role", []).FirstOrDefault() ?? "Viewer";
+            var roleString = principal.FindFirst("role")?.Value ?? "Viewer";
 
             user = new User
             {
@@ -235,9 +235,9 @@ public class Api(
                 SubjectId = sub,
                 Name = parts.ElementAtOrDefault(0) ?? fullName,
                 Surname = parts.ElementAtOrDefault(1) ?? "",
-                Email = claims.GetValueOrDefault("email", []).FirstOrDefault() ?? "",
+                Email = principal.FindFirst("email")?.Value ?? "",
                 Role = Enum.TryParse<UserRole>(roleString, out var r) ? r : UserRole.Viewer,
-                CompanyIds = [.. claims.GetValueOrDefault("company_id", [])],
+                CompanyIds = [.. principal.FindAll("company_id").Select(c => c.Value)],
             };
 
             await session.StoreAsync(user, id, req.HttpContext.RequestAborted);

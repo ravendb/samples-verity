@@ -32,6 +32,9 @@ export async function callApi<T>(
   const res = await fetch(apiUrl(path), { ...options, headers });
 
   if (res.status === 401) {
+    if (typeof window === "undefined") {
+      throw new Error("HTTP 401 Unauthorized");
+    }
     window.location.href = `/bff/login?returnUrl=${encodeURIComponent(window.location.pathname + window.location.search)}`;
     return new Promise(() => {}); // never resolves — navigation takes over
   }
