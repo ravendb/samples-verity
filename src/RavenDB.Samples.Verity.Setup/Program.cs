@@ -5,7 +5,6 @@ using Raven.Migrations;
 using RavenDB.Samples.Verity.Setup;
 using RavenDB.Samples.Verity.Setup.Migrations;
 using System.Net.Security;
-using System.Security.Cryptography.X509Certificates;
 
 // Accept self-signed server certs (chain validation fails because our dev CA is not trusted).
 // Name and revocation checks still apply — only chain-of-trust errors are forgiven.

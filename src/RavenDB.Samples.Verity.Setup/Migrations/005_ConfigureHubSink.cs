@@ -22,9 +22,14 @@ public sealed class ConfigureHubSink(MigrationContext context) : Migration
         }
         catch (Exception ex) when (ex.Message.Contains("there is already a Hub Pull Replications with that name")) { }
 
-        // 2) Certificate injected by AppHost
+        // 2) Certificate injected by AppHost — fail fast if missing so the error is obvious
         var publicCertBase64 = context.SinkCertPublicBase64;
         var pfxBase64 = context.SinkCertPfxBase64;
+
+        if (string.IsNullOrWhiteSpace(publicCertBase64))
+            throw new InvalidOperationException("SinkCertPublicBase64 was not injected. Ensure the AppHost generated the sink certificate and passed it as an environment variable.");
+        if (string.IsNullOrWhiteSpace(pfxBase64))
+            throw new InvalidOperationException("SinkCertPfxBase64 was not injected. Ensure the AppHost generated the sink certificate and passed it as an environment variable.");
 
         // 3) Register Sink certificate on the Hub with allowed paths
         try
@@ -41,9 +46,10 @@ public sealed class ConfigureHubSink(MigrationContext context) : Migration
         catch (Exception ex) when (ex.Message.Contains("already") && ex.Message.Contains("access")) { }
 
         // 4) Create Sink database (if it doesn't exist)
-        var serverCert = !string.IsNullOrEmpty(context.ServerCertPath) && File.Exists(context.ServerCertPath)
-            ? X509CertificateLoader.LoadPkcs12FromFile(context.ServerCertPath, null)
-            : null;
+        // ServerCertPath is mandatory in secured mode — the sinkStore needs a trusted client cert for every call.
+        if (string.IsNullOrEmpty(context.ServerCertPath) || !File.Exists(context.ServerCertPath))
+            throw new InvalidOperationException($"ServerCertPath '{context.ServerCertPath}' was not found. Ensure the AppHost exported the server certificate and passed its path as an environment variable.");
+        var serverCert = X509CertificateLoader.LoadPkcs12FromFile(context.ServerCertPath, null);
 
         using var sinkStore = new DocumentStore
         {
