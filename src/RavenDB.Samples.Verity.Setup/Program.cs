@@ -9,8 +9,12 @@ using System.Security.Cryptography.X509Certificates;
 
 // Accept self-signed server certs (chain validation fails because our dev CA is not trusted).
 // Name and revocation checks still apply — only chain-of-trust errors are forgiven.
-RequestExecutor.RemoteCertificateValidationCallback +=
-    (_, _, _, errors) => (errors & ~SslPolicyErrors.RemoteCertificateChainErrors) == SslPolicyErrors.None;
+// Restricted to Development so this never relaxes TLS validation outside local dev.
+if (Environment.GetEnvironmentVariable("DOTNET_ENVIRONMENT") == "Development")
+{
+    RequestExecutor.RemoteCertificateValidationCallback +=
+        (_, _, _, errors) => (errors & ~SslPolicyErrors.RemoteCertificateChainErrors) == SslPolicyErrors.None;
+}
 
 var builder = Host.CreateApplicationBuilder(args);
 

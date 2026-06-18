@@ -27,14 +27,18 @@ public sealed class ConfigureHubSink(MigrationContext context) : Migration
         var pfxBase64 = context.SinkCertPfxBase64;
 
         // 3) Register Sink certificate on the Hub with allowed paths
-        DocumentStore.Maintenance.Send(new RegisterReplicationHubAccessOperation(
-            VerityReplicationHub.HubName,
-            new ReplicationHubAccess
-            {
-                Name = VerityReplicationSink.AccessName,
-                CertificateBase64 = publicCertBase64,
-                AllowedHubToSinkPaths = VerityReplicationSink.AllowedPaths
-            }));
+        try
+        {
+            DocumentStore.Maintenance.Send(new RegisterReplicationHubAccessOperation(
+                VerityReplicationHub.HubName,
+                new ReplicationHubAccess
+                {
+                    Name = VerityReplicationSink.AccessName,
+                    CertificateBase64 = publicCertBase64,
+                    AllowedHubToSinkPaths = VerityReplicationSink.AllowedPaths
+                }));
+        }
+        catch (Exception ex) when (ex.Message.Contains("already") && ex.Message.Contains("access")) { }
 
         // 4) Create Sink database (if it doesn't exist)
         var serverCert = !string.IsNullOrEmpty(context.ServerCertPath) && File.Exists(context.ServerCertPath)

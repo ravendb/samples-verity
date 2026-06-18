@@ -7,8 +7,12 @@ using Spectre.Console;
 using System.Net.Security;
 
 // Accept self-signed server certs — chain errors only; name and revocation checks still apply.
-RequestExecutor.RemoteCertificateValidationCallback +=
-    (_, _, _, errors) => (errors & ~SslPolicyErrors.RemoteCertificateChainErrors) == SslPolicyErrors.None;
+// Restricted to Development so this never relaxes TLS validation outside local dev.
+if (Environment.GetEnvironmentVariable("DOTNET_ENVIRONMENT") == "Development")
+{
+    RequestExecutor.RemoteCertificateValidationCallback +=
+        (_, _, _, errors) => (errors & ~SslPolicyErrors.RemoteCertificateChainErrors) == SslPolicyErrors.None;
+}
 
 AnsiConsole.Profile.Capabilities.Ansi = true;
 AnsiConsole.Profile.Capabilities.Unicode = true;

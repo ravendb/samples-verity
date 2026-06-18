@@ -8,8 +8,12 @@ using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 
 // Accept self-signed server cert in AppHost health-check calls to RavenDB.
-RequestExecutor.RemoteCertificateValidationCallback +=
-    (_, _, _, errors) => (errors & ~SslPolicyErrors.RemoteCertificateChainErrors) == SslPolicyErrors.None;
+// Restricted to Development so this never relaxes TLS validation outside local dev.
+if (Environment.GetEnvironmentVariable("DOTNET_ENVIRONMENT") == "Development")
+{
+    RequestExecutor.RemoteCertificateValidationCallback +=
+        (_, _, _, errors) => (errors & ~SslPolicyErrors.RemoteCertificateChainErrors) == SslPolicyErrors.None;
+}
 
 // Env var names must match Constants.EnvVars in RavenDB.Samples.Verity.Setup
 const string envOpenAiApiKey                 = "SAMPLES_VERITY_OPENAI_API_KEY";
