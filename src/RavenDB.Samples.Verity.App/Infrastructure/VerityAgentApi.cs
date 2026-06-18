@@ -128,6 +128,9 @@ public class VerityAgentApi(
         if (user is null)
             return new UnauthorizedResult();
 
+        if (!CanAccessCompany(user, report.CompanyId))
+            return new ObjectResult("Access to this company is not allowed.") { StatusCode = 403 };
+
         // Load HTML attachment, strip tags, truncate to 40k chars
         var attachmentResult = await session.Advanced.Attachments.GetAsync(
             body.ReportId, Report.AttachmentName("10-Q"), req.HttpContext.RequestAborted)

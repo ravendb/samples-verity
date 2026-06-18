@@ -42,6 +42,14 @@ if (builder.Environment.IsDevelopment())
                 ctx.CookieOptions.Secure = false;
             }
         };
+        options.OnDeleteCookie = ctx =>
+        {
+            if (ctx.CookieOptions.SameSite == SameSiteMode.None)
+            {
+                ctx.CookieOptions.SameSite = SameSiteMode.Lax;
+                ctx.CookieOptions.Secure = false;
+            }
+        };
     });
 }
 

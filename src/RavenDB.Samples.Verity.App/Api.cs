@@ -17,7 +17,6 @@ using RavenDB.Samples.Verity.Model;
 using RavenDB.Samples.Verity.Setup;
 using RavenDB.Samples.Verity.Model.Tasks;
 using System.Globalization;
-using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 
@@ -32,8 +31,7 @@ public class Api(
 
     private static string? GetSubjectFromBearer(HttpRequest req)
     {
-        return req.HttpContext.User.FindFirst("sub")?.Value
-              ?? DecodeJwtClaims(req).GetValueOrDefault("sub")?.FirstOrDefault();
+        return req.HttpContext.User.FindFirst("sub")?.Value;
     }
     private async Task<User?> GetCurrentUserAsync(HttpRequest req)
     {
@@ -44,38 +42,6 @@ public class Api(
     private static bool CanAccessCompany(User user, string companyId) =>
     user.Role == UserRole.Admin ||
     (user.Role == UserRole.Analyst && user.CompanyIds.Contains(companyId));
-
-    // Decodes the JWT payload without signature validation.
-    // The BFF has already validated the token; we only need the claims.
-    private static Dictionary<string, string[]> DecodeJwtClaims(HttpRequest req)
-    {
-        var auth = req.Headers.Authorization.ToString();
-        if (!auth.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
-            return [];
-
-        var parts = auth["Bearer ".Length..].Split('.');
-        if (parts.Length < 2) return [];
-
-        var padded = parts[1].Replace('-', '+').Replace('_', '/');
-        padded += (padded.Length % 4) switch { 2 => "==", 3 => "=", _ => "" };
-
-        try
-        {
-            var json = Encoding.UTF8.GetString(Convert.FromBase64String(padded));
-            using var doc = JsonDocument.Parse(json);
-            return doc.RootElement.EnumerateObject()
-                .Where(p => p.Value.ValueKind is JsonValueKind.String or JsonValueKind.Array)
-                .ToDictionary(
-                    p => p.Name,
-                    p => p.Value.ValueKind == JsonValueKind.Array
-                        ? p.Value.EnumerateArray()
-                                  .Where(e => e.ValueKind == JsonValueKind.String)
-                                  .Select(e => e.GetString()!)
-                                  .ToArray()
-                        : [p.Value.GetString()!]);
-        }
-        catch { return []; }
-    }
 
     // OPTIONS * — CORS preflight handler
     [Function(nameof(CorsPreflightHandler))]
@@ -225,16 +191,14 @@ public class Api(
         if (user is null)
         {
             var principal = req.HttpContext.User;
-            var fullName = principal.FindFirst("name")?.Value ?? "";
-            var parts = fullName.Split(' ', 2, StringSplitOptions.RemoveEmptyEntries);
             var roleString = principal.FindFirst("role")?.Value ?? "Viewer";
 
             user = new User
             {
                 Id = id,
                 SubjectId = sub,
-                Name = parts.ElementAtOrDefault(0) ?? fullName,
-                Surname = parts.ElementAtOrDefault(1) ?? "",
+                Name = principal.FindFirst("given_name")?.Value ?? "",
+                Surname = principal.FindFirst("family_name")?.Value ?? "",
                 Email = principal.FindFirst("email")?.Value ?? "",
                 Role = Enum.TryParse<UserRole>(roleString, out var r) ? r : UserRole.Viewer,
                 CompanyIds = [.. principal.FindAll("company_id").Select(c => c.Value)],
