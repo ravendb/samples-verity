@@ -103,8 +103,11 @@ var frontend = builder.AddNpmApp("Frontend", "../RavenDB.Samples.Verity.Frontend
     .PublishAsDockerFile();
 
 // Duende license key — optional. When set, suppresses the trial-mode warning.
-// Store via: dotnet user-secrets set "Parameters:duende-license" "<key>"  (run in AppHost folder)
-var duendeLicenseKey = builder.Configuration["Parameters:duende-license"] ?? "";
+// Wired as a regular Aspire parameter (empty default) so it shows up in the dashboard
+// like the other parameters, instead of being read silently from raw configuration.
+var duendeLicenseKey = builder
+    .AddParameter("duende-license", value: "", secret: true)
+    .WithDescription("Optional Duende IdentityServer license key. Leave empty to run in trial mode.");
 
 // IdentityServer — local Duende IdentityServer for development
 var identity = builder.AddProject<RavenDB_Samples_Verity_IdentityServer>("identity")
@@ -126,12 +129,9 @@ var bff = builder.AddProject<RavenDB_Samples_Verity_Bff>("bff")
     .WithEnvironment("Frontend__Url", frontend.GetEndpoint("http"))
     .WithExternalHttpEndpoints();
 
-// Inject license key only when provided — avoids prompting users who run without one.
-if (!string.IsNullOrEmpty(duendeLicenseKey))
-{
-    identity.WithEnvironment("IdentityServer__LicenseKey", duendeLicenseKey);
-    bff.WithEnvironment("IdentityServer__LicenseKey", duendeLicenseKey);
-}
+// Empty default keeps it optional — Duende falls back to trial mode when unset.
+identity.WithEnvironment("IdentityServer__LicenseKey", duendeLicenseKey);
+bff.WithEnvironment("IdentityServer__LicenseKey", duendeLicenseKey);
 
 // Tell IdentityServer the BFF's base URL for redirect URI registration.
 // Must be the external HTTPS endpoint — the browser sends redirect_uri based on
