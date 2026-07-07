@@ -63,29 +63,35 @@ var sinkCert = certReq.CreateSelfSigned(DateTimeOffset.UtcNow.AddDays(-1), DateT
 var sinkCertPublicBase64 = Convert.ToBase64String(sinkCert.Export(X509ContentType.Cert));
 var sinkCertPfxBase64    = Convert.ToBase64String(sinkCert.Export(X509ContentType.Pfx));
 
-// RavenDB server certificate — regenerated each run (RavenDB data is ephemeral / no volume).
-// Mounted read-only into the container; host path is injected into clients for auth.
+// RavenDB server certificate — reused across AppHost runs so the Windows cert store install
+// only happens once. Regenerated only when missing or within 30 days of expiry.
+// Developer license requires cert validity <= 4 months.
 var certsDir = Path.Combine(AppContext.BaseDirectory, "certs");
 Directory.CreateDirectory(certsDir);
 var serverCertPath = Path.Combine(certsDir, "server.pfx");
+
+X509Certificate2 serverCertObj;
+try
 {
-    using var serverRsa = RSA.Create(2048);
-    var serverCertReq = new CertificateRequest("CN=localhost", serverRsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
-    var sanBuilder = new SubjectAlternativeNameBuilder();
-    sanBuilder.AddDnsName("localhost");
-    sanBuilder.AddIpAddress(IPAddress.Loopback);
-    serverCertReq.CertificateExtensions.Add(sanBuilder.Build());
-    serverCertReq.CertificateExtensions.Add(new X509BasicConstraintsExtension(false, false, 0, true));
-    // Key Usage and EKU required by RavenDB client certificate validation
-    serverCertReq.CertificateExtensions.Add(new X509KeyUsageExtension(
-        X509KeyUsageFlags.DigitalSignature | X509KeyUsageFlags.KeyEncipherment, critical: false));
-    serverCertReq.CertificateExtensions.Add(new X509EnhancedKeyUsageExtension(
-        new OidCollection { new Oid("1.3.6.1.5.5.7.3.1"), new Oid("1.3.6.1.5.5.7.3.2") }, critical: false));
-    // Developer license requires cert validity <= 4 months
-    var serverCertCreated = serverCertReq.CreateSelfSigned(DateTimeOffset.UtcNow.AddDays(-1), DateTimeOffset.UtcNow.AddMonths(3));
-    File.WriteAllBytes(serverCertPath, serverCertCreated.Export(X509ContentType.Pfx));
+    serverCertObj = X509CertificateLoader.LoadPkcs12FromFile(serverCertPath, null);
+    if (serverCertObj.NotAfter <= DateTime.UtcNow.AddDays(30))
+        serverCertObj = BuildServerCert(serverCertPath);
 }
-var serverCertObj = X509CertificateLoader.LoadPkcs12FromFile(serverCertPath, null);
+catch
+{
+    serverCertObj = BuildServerCert(serverCertPath);
+}
+
+// Auto-install into CurrentUser\My (Personal) so Chrome can offer it as a client certificate
+// when RavenDB Studio initiates mutual TLS. Silent on Windows — no UAC or dialog required.
+// Only installed once per cert lifetime; Contains() checks by thumbprint.
+if (Environment.GetEnvironmentVariable("DOTNET_ENVIRONMENT") == "Development")
+{
+    using var certStore = new X509Store(StoreName.My, StoreLocation.CurrentUser);
+    certStore.Open(OpenFlags.ReadWrite);
+    if (!certStore.Certificates.Contains(serverCertObj))
+        certStore.Add(serverCertObj);
+}
 
 // RavenDB — secured mode required for Hub filtered pull replication (WithFiltering = true)
 const int ravenHostPort = 9534;
@@ -201,3 +207,21 @@ builder.AddNpmApp("Frontend", "../RavenDB.Samples.Verity.Frontend", "dev")
     .WaitFor(functions);
 
 builder.Build().Run();
+
+static X509Certificate2 BuildServerCert(string path)
+{
+    using var rsa = RSA.Create(2048);
+    var req = new CertificateRequest("CN=localhost", rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
+    var san = new SubjectAlternativeNameBuilder();
+    san.AddDnsName("localhost");
+    san.AddIpAddress(IPAddress.Loopback);
+    req.CertificateExtensions.Add(san.Build());
+    req.CertificateExtensions.Add(new X509BasicConstraintsExtension(false, false, 0, true));
+    req.CertificateExtensions.Add(new X509KeyUsageExtension(
+        X509KeyUsageFlags.DigitalSignature | X509KeyUsageFlags.KeyEncipherment, critical: false));
+    req.CertificateExtensions.Add(new X509EnhancedKeyUsageExtension(
+        new OidCollection { new Oid("1.3.6.1.5.5.7.3.1"), new Oid("1.3.6.1.5.5.7.3.2") }, critical: false));
+    var cert = req.CreateSelfSigned(DateTimeOffset.UtcNow.AddDays(-1), DateTimeOffset.UtcNow.AddMonths(3));
+    File.WriteAllBytes(path, cert.Export(X509ContentType.Pfx));
+    return X509CertificateLoader.LoadPkcs12FromFile(path, null);
+}
