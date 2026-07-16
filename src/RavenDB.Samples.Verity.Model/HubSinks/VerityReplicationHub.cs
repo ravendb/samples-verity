@@ -9,7 +9,7 @@ public static class VerityReplicationHub
     public static PullReplicationDefinition Create() => new()
     {
         Name          = HubName,
-        WithFiltering = false,
+        WithFiltering = true,
         Mode          = PullReplicationMode.HubToSink
     };
 }

@@ -56,7 +56,14 @@ public sealed class ConfigureDatabase(MigrationContext context) : Migration
             ConcurrentUploads   = 5
         };
 
-        DocumentStore.Maintenance.Send(new ConfigureRemoteAttachmentsOperation(remoteAttachmentsConfig));
+        try
+        {
+            DocumentStore.Maintenance.Send(new ConfigureRemoteAttachmentsOperation(remoteAttachmentsConfig));
+        }
+        catch (Exception ex) when (ex.Message.Contains("remote attachments") || ex.Message.Contains("license"))
+        {
+            Console.WriteLine($"[WARN] Remote Attachments skipped — not supported by current license: {ex.Message}");
+        }
 
         // 2) DATA ARCHIVAL
         DocumentStore.Maintenance.Send(new ConfigureDataArchivalOperation(new DataArchivalConfiguration
