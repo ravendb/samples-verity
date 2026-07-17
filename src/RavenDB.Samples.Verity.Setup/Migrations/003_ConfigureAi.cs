@@ -16,22 +16,22 @@ public sealed class ConfigureAi(MigrationContext context) : Migration
         DocumentStore.Maintenance.Send(new ConfigureTimeSeriesOperation(new TimeSeriesConfiguration
         {
             Collections =
-            {
-                { "ApiUsageSession",       new TimeSeriesCollectionConfiguration() },
-                { "GlobalApiUsageLimiter", new TimeSeriesCollectionConfiguration() }
-            }
+                {
+                    { "ApiUsageSession",       new TimeSeriesCollectionConfiguration() },
+                    { "GlobalApiUsageLimiter", new TimeSeriesCollectionConfiguration() }
+                }
         }));
 
         // AI CONNECTION STRING
         const string connectionName = Constants.AiConnectionStringName;
         DocumentStore.Maintenance.Send(new PutConnectionStringOperation<AiConnectionString>(new AiConnectionString
         {
-            Name           = connectionName,
-            ModelType      = AiModelType.Chat,
+            Name = connectionName,
+            ModelType = AiModelType.Chat,
             OpenAiSettings = new OpenAiSettings
             {
-                ApiKey   = context.OpenAiApiKey,
-                Model    = "gpt-5-mini",
+                ApiKey = context.OpenAiApiKey,
+                Model = "gpt-5-mini",
                 Endpoint = "https://api.openai.com/v1"
             }
         }));
@@ -39,9 +39,11 @@ public sealed class ConfigureAi(MigrationContext context) : Migration
         // AI AGENT
         VerityAgentCreator.Create(DocumentStore, connectionName).GetAwaiter().GetResult();
 
+
         // GEN AI TASKS
         DocumentStore.Maintenance.Send(new AddGenAiOperation(new ChunkAnalysisTask(connectionName)));
         DocumentStore.Maintenance.Send(new AddGenAiOperation(new ProfitabilityTask(connectionName)));
+
     }
 
     public override void Down()

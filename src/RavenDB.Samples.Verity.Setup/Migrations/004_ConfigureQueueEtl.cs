@@ -22,6 +22,7 @@ public sealed class ConfigureQueueEtl(MigrationContext context) : Migration
         }));
 
         DocumentStore.Maintenance.Send(new AddEtlOperation<QueueConnectionString>(AuditRevisionQueueEtlTask.Create()));
+
     }
 
     public override void Down()

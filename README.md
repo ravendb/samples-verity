@@ -6,7 +6,7 @@
 
 **Verity solves the problem of financial reporting by turning a messy, manual document process into a workflow.** Instead of treating quarterly filings and annual disclosures as static files passed around for review, the app uses RavenDB to keep the documents, their history, and their analysis in one place. That means teams can track how a filing evolved, preserve an audit trail, and work from a single source of truth when reviewing high-stakes financial narratives.
 
-**The application also demonstrates the power of declarative usage of AI tools.** Filings are fetched from SEC EDGAR, then processed automatically through RavenDB’s GenAI tasks. We show how easily you can handle files bigger that the context size window and still reason about the content and extract the data that you need. 
+**The application also demonstrates the power of declarative usage of AI tools.** Filings are fetched from SEC EDGAR, then processed automatically through RavenDB’s GenAI tasks. We show how easily you can handle files bigger that the context size window and still reason about the content and extract the data that you need.
 
 To fully **embed itself into Microsoft Azure ecosystem**, Verity delegates the filling payload handling to the Azure Storage, using the RavenDB's Remote Attachments. On top of this, it uses Azure Storage Queues with RavenDB's ETL capabilities to show that easily build up a data-centric hub to support communication with other parts of your platform. RavenDB's native Data Subscriptions are used to support a command line terminal, showing capability to react to documents being changed in real time.
 
@@ -15,7 +15,6 @@ To fully **embed itself into Microsoft Azure ecosystem**, Verity delegates the f
 **Built with RavenDB, .NET Aspire, Azure Storage, Azure Functions, AI integration, and a modern frontend.**
 
 <img width="3747" height="1837" alt="image" src="https://github.com/user-attachments/assets/87bcc8c7-3c86-458f-b6f3-033ce40da916" />
-
 
 ## Features used
 
@@ -44,6 +43,7 @@ The following technogies were used to build this application:
 1. Svelte
 
 ## Local setup
+
 A few steps are required to run the application locally.
 
 1. Check out the GIT repository
@@ -59,6 +59,7 @@ A few steps are required to run the application locally.
       1. ApiKey: your OpenAI api key
       1. AzureStorage: your Azure storage connection string
       1. RavenDB License: your license which you can get here [RavenDB download](https://ravendb.net/download)
+1. RavenDB Studio is available at `https://localhost:9534`. The AppHost automatically generates `server.pfx` and installs it into **Current User > Personal** on Windows, so no manual certificate import is needed. The certificate persists between runs and is only regenerated when missing or near expiry.
 
 ## Remarks
 
@@ -68,7 +69,7 @@ The sink does not replicate subscriptions from the hub. Subscriptions are create
 
 ## Community & Support
 
-If you spot a bug, have an idea or a question, please let us know by rasing an issue or creating a pull request. 
+If you spot a bug, have an idea or a question, please let us know by rasing an issue or creating a pull request.
 
 We do use a [Discord server](https://discord.gg/ravendb). If you have any doubts, don't hesistate to reach out!
 
