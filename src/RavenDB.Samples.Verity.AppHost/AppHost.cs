@@ -214,7 +214,9 @@ var duendeLicenseKey = builder
 var identity = builder.AddProject<RavenDB_Samples_Verity_IdentityServer>("identity")
     .WithExternalHttpEndpoints()
     .WithReference(db)
-    .WaitFor(db);
+    .WaitFor(db)
+    .WithEnvironment(envRavenDbClientCertificatePath, serverCertPath)
+    .WithEnvironment("DOTNET_ENVIRONMENT", "Development");
 functions.WithEnvironment("Identity__Url", identity.GetEndpoint("http"));
 // BFF — single entry point for the browser; proxies API (with tokens) + frontend
 var bff = builder.AddProject<RavenDB_Samples_Verity_Bff>("bff")
