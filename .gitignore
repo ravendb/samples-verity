@@ -6,6 +6,9 @@
 # Dev TLS certificates — never commit private keys
 certs/
 
+# Duende IdentityServer signing keys — generated at runtime, must not be committed
+**/IdentityServer/keys/
+
 # User-specific files
 *.rsuser
 *.suo
@@ -13,6 +16,10 @@ certs/
 *.userosscache
 *.sln.docstates
 *.env
+
+# IdentityServer auto-generated signing keys (env-specific, protected by Data Protection)
+src/RavenDB.Samples.Verity.IdentityServer/keys/
+
 
 # User-specific files (MonoDevelop/Xamarin Studio)
 *.userprefs

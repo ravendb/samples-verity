@@ -70,7 +70,7 @@ select r.AccessionNumber, r.ReportDate, r.FormType, r.Year, r.Quarter,
                         Query       = $@"
 from {User.Collection} as u
 where id(u) = $userId
-select u.Name, u.Surname, u.Email, u.CompanyId",
+select u.Name, u.Surname, u.Email, u.CompanyIds",
                         ParametersSampleObject = "{}"
                     },
 

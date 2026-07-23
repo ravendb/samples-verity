@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace RavenDB.Samples.Verity.Model;
 
 public class User : IDocument
@@ -7,12 +9,20 @@ public class User : IDocument
     public static string BuildId(string companyName, string firstName, string lastName)
         => $"{Collection}/{companyName}/{firstName} {lastName}";
 
+    public static string BuildId(string subjectId)
+        => $"{Collection}/{subjectId}";
+
     public static string BuildId(Company company, string firstName, string lastName)
         => BuildId(company.Name, firstName, lastName);
 
-    public string Id        { get; set; } = null!;
-    public string CompanyId { get; set; } = null!;
-    public string Name      { get; set; } = null!;
-    public string Surname   { get; set; } = null!;
-    public string Email     { get; set; } = null!;
+    public string Id { get; set; } = null!;
+    public List<string> CompanyIds { get; set; } = [];
+    public string Name { get; set; } = null!;
+    public string Surname { get; set; } = null!;
+    public string Email { get; set; } = null!;
+    public string? SubjectId { get; set; } // IS subject (sub claim); null for auditor placeholder users with no login
+    public string? Username { get; set; } // login name, lowercase; null for auditor placeholder users with no login
+    [JsonIgnore]
+    public string PasswordHash { get; set; } = string.Empty;
+    public UserRole Role { get; set; } = UserRole.Viewer;
 }

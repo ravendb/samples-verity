@@ -118,6 +118,9 @@ class SamplesUIWrapper extends HTMLElement {
         this.setTheme(this.getAttribute("theme"));
         this.shadowRoot.querySelector(".source-link").href = this.getAttribute("sourceLink");
 
+        if (sessionStorage.getItem("ravendb_welcome_seen")) {
+            this.shadowRoot.querySelector(".welcome-toast").style.display = "none";
+        }
     }
 
     validateAttributes() {
@@ -145,6 +148,7 @@ class SamplesUIWrapper extends HTMLElement {
     }
 
     closeWelcomeToast() {
+        sessionStorage.setItem("ravendb_welcome_seen", "1");
         this.shadowRoot.querySelector(".welcome-toast").style.display = "none";
     }
 

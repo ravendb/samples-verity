@@ -40,4 +40,9 @@
     <PackageVersion Include="Spectre.Console" Version="0.56.1-alpha.0.2" />
     <PackageVersion Include="System.Reactive" Version="6.1.0" />
   </ItemGroup>
+  <ItemGroup Label="Identity">
+    <PackageVersion Include="Duende.IdentityServer" Version="7.4.7" />
+    <PackageVersion Include="Duende.BFF.Yarp" Version="4.1.2" />
+    <PackageVersion Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.8" />
+  </ItemGroup>
 </Project>

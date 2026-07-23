@@ -122,6 +122,7 @@ ravenDbServer.Resource.Annotations
     .First(e => e.Name == "https")
     .TargetPort = ravenHostPort;
 
+
 var db = ravenDbServer.AddDatabase("Verity");
 var sink = ravenDbServer.AddDatabase("Verity-sink");
 
@@ -196,15 +197,49 @@ builder.AddExecutable("subscriptions", "cmd", "../RavenDB.Samples.Verity.DataSub
     // activates and the TLS handshake to the secured RavenDB sink is rejected.
     .WithEnvironment("DOTNET_ENVIRONMENT", "Development");
 
-// Frontend
-builder.AddNpmApp("Frontend", "../RavenDB.Samples.Verity.Frontend", "dev")
-    .WithReference(functions)
+// Frontend (Vite dev server — internal; BFF is the external entry point)
+var frontend = builder.AddNpmApp("Frontend", "../RavenDB.Samples.Verity.Frontend", "dev")
     .WithEnvironment("BROWSER", "none")
-    .WithEnvironment("APP_HTTP", functions.GetEndpoint("http"))
     .WithHttpEndpoint(env: "VITE_PORT")
+    .PublishAsDockerFile();
+
+// Duende license key — optional. When set, suppresses the trial-mode warning.
+// Wired as a regular Aspire parameter (empty default) so it shows up in the dashboard
+// like the other parameters, instead of being read silently from raw configuration.
+var duendeLicenseKey = builder
+    .AddParameter("duende-license", value: "", secret: true)
+    .WithDescription("Optional Duende IdentityServer license key. Leave empty to run in trial mode.");
+
+// IdentityServer — local Duende IdentityServer for development
+var identity = builder.AddProject<RavenDB_Samples_Verity_IdentityServer>("identity")
     .WithExternalHttpEndpoints()
-    .PublishAsDockerFile()
-    .WaitFor(functions);
+    .WithReference(db)
+    .WaitFor(db)
+    .WithEnvironment(envRavenDbClientCertificatePath, serverCertPath)
+    .WithEnvironment("DOTNET_ENVIRONMENT", "Development");
+functions.WithEnvironment("Identity__Url", identity.GetEndpoint("http"));
+// BFF — single entry point for the browser; proxies API (with tokens) + frontend
+var bff = builder.AddProject<RavenDB_Samples_Verity_Bff>("bff")
+    .WithReference(functions)
+    .WaitFor(functions)
+    .WithReference(frontend)
+    .WaitFor(frontend)
+    .WithReference(identity)
+    .WaitFor(identity)
+    // Pass actual URLs so OIDC issuer validation works correctly.
+    .WithEnvironment("Identity__Url", identity.GetEndpoint("http"))
+    .WithEnvironment("Api__Url", functions.GetEndpoint("http"))
+    .WithEnvironment("Frontend__Url", frontend.GetEndpoint("http"))
+    .WithExternalHttpEndpoints();
+
+// Empty default keeps it optional — Duende falls back to trial mode when unset.
+identity.WithEnvironment("IdentityServer__LicenseKey", duendeLicenseKey);
+bff.WithEnvironment("IdentityServer__LicenseKey", duendeLicenseKey);
+
+// Tell IdentityServer the BFF's base URL for redirect URI registration.
+// Must be the external HTTPS endpoint — the browser sends redirect_uri based on
+// the public URL it sees, so IdentityServer must register the same HTTPS address.
+identity.WithEnvironment("Bff__BaseUrl", bff.GetEndpoint("https"));
 
 builder.Build().Run();
 

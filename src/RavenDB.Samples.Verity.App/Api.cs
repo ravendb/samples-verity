@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Azure.Functions.Worker;
@@ -16,7 +17,6 @@ using RavenDB.Samples.Verity.Model;
 using RavenDB.Samples.Verity.Setup;
 using RavenDB.Samples.Verity.Model.Tasks;
 using System.Globalization;
-using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 
@@ -29,6 +29,20 @@ public class Api(
     SecEdgarApi edgar)
 {
 
+    private static string? GetSubjectFromBearer(HttpRequest req)
+    {
+        return req.HttpContext.User.FindFirst("sub")?.Value;
+    }
+    private async Task<User?> GetCurrentUserAsync(HttpRequest req)
+    {
+        var sub = GetSubjectFromBearer(req);
+        if (sub is null) return null;
+        return await session.LoadAsync<User>(User.BuildId(sub), req.HttpContext.RequestAborted);
+    }
+    private static bool CanAccessCompany(User user, string companyId) =>
+    user.Role == UserRole.Admin ||
+    (user.Role == UserRole.Analyst && user.CompanyIds.Contains(companyId));
+
     // OPTIONS * — CORS preflight handler
     [Function(nameof(CorsPreflightHandler))]
     public IActionResult CorsPreflightHandler(
@@ -38,6 +52,7 @@ public class Api(
     }
 
     // GET /api/reports?cik=320193
+    [Authorize]
     [Function(nameof(GetReports))]
     public async Task<IActionResult> GetReports(
         [HttpTrigger("get", Route = "reports")] HttpRequest req)
@@ -54,6 +69,10 @@ public class Api(
             if (company is null)
                 return new NotFoundObjectResult($"Company with CIK {cik} not found.");
 
+            var currentUser = await GetCurrentUserAsync(req);
+            if (currentUser?.Role == UserRole.Analyst && !currentUser.CompanyIds.Contains(company.Id))
+                return new ObjectResult("Access to this company is not allowed.") { StatusCode = 403 };
+
             var reports = await session.Query<Report>()
                                        .Where(r => r.CompanyId == company.Id)
                                        .OrderByDescending(r => r.ReportDate)
@@ -64,8 +83,27 @@ public class Api(
 
         return new NotFoundObjectResult($"No CIK number provided");
     }
+    [Authorize(Roles = nameof(UserRole.Admin))]
+    [Function(nameof(GetEvents))]
+    public async Task<IActionResult> GetEvents([HttpTrigger("get", Route = "security/events")] HttpRequest req)
+    {
+        var page = int.TryParse(req.Query["page"], out var p) && p > 0 ? p : 1;
+        var pageSize = int.TryParse(req.Query["pageSize"], out var ps) && ps > 0 ? Math.Min(ps, 50) : 20;
+        var skip = (page - 1) * pageSize;
+
+        var events = await session.Query<SecurityEvent>()
+                                  .Statistics(out var stats)
+                                  .OrderByDescending(e => e.At)
+                                  .Skip(skip)
+                                  .Take(pageSize)
+                                  .ToListAsync();
+
+        var totalPages = (int)Math.Ceiling(stats.TotalResults / (double)pageSize);
+        return new JsonResult(new PagedResult<SecurityEvent>(events, page, pageSize, totalPages));
+    }
 
     // GET /api/report?accession=0000320193-24-000123
+    [Authorize]
     [Function(nameof(GetReport))]
     public async Task<IActionResult> GetReport(
         [HttpTrigger("get", Route = "report")] HttpRequest req)
@@ -80,17 +118,30 @@ public class Api(
         if (report is null)
             return new NotFoundObjectResult($"Report with accession number '{accession}' not found.");
 
+        var currentUser = await GetCurrentUserAsync(req);
+        if (currentUser?.Role == UserRole.Analyst && !currentUser.CompanyIds.Contains(report.CompanyId))
+            return new ObjectResult("Access to this company is not allowed.") { StatusCode = 403 };
+
         return new JsonResult(report);
     }
 
     // GET /api/companies?page=1&pageSize=20
+    [Authorize]
     [Function(nameof(GetCompanies))]
     public async Task<IActionResult> GetCompanies(
         [HttpTrigger("get", Route = "companies")] HttpRequest req)
     {
-        var page     = int.TryParse(req.Query["page"],     out var p)  && p  > 0 ? p  : 1;
+        var currentUser = await GetCurrentUserAsync(req);
+        if (currentUser?.Role == UserRole.Analyst)
+        {
+            var loaded = await session.LoadAsync<Company>(currentUser.CompanyIds, req.HttpContext.RequestAborted);
+            var list = loaded.Values.OfType<Company>().OrderBy(c => c.Name).ToList();
+            return new JsonResult(new PagedResult<Company>(list, 1, list.Count, 1));
+        }
+
+        var page = int.TryParse(req.Query["page"], out var p) && p > 0 ? p : 1;
         var pageSize = int.TryParse(req.Query["pageSize"], out var ps) && ps > 0 ? Math.Min(ps, 100) : 20;
-        var skip     = (page - 1) * pageSize;
+        var skip = (page - 1) * pageSize;
 
         var companies = await session.Query<Company>()
                                      .Statistics(out var stats)
@@ -100,12 +151,13 @@ public class Api(
                                      .Take(pageSize)
                                      .ToListAsync();
 
-        var total      = stats.TotalResults;
+        var total = stats.TotalResults;
         var totalPages = (int)Math.Ceiling(total / (double)pageSize);
         return new JsonResult(new PagedResult<Company>(companies, page, pageSize, totalPages));
     }
 
     // GET /api/users?companyId=Companies/...
+    [Authorize(Roles = nameof(UserRole.Admin))]
     [Function(nameof(GetUsers))]
     public async Task<IActionResult> GetUsers(
         [HttpTrigger("get", Route = "users")] HttpRequest req)
@@ -115,7 +167,7 @@ public class Api(
             return new BadRequestObjectResult("Provide the 'companyId' query parameter.");
 
         var users = await session.Query<User>()
-                                 .Where(u => u.CompanyId == companyId)
+                                 .Where(u => u.CompanyIds.Contains(companyId))
                                  .OrderBy(u => u.Surname)
                                  .ThenBy(u => u.Name)
                                  .ToListAsync();
@@ -123,7 +175,70 @@ public class Api(
         return new JsonResult(users);
     }
 
+    // GET /api/users/me — returns the authenticated user's profile, creating it on first login.
+    [Authorize]
+    [Function(nameof(GetMe))]
+    public async Task<IActionResult> GetMe(
+        [HttpTrigger("get", Route = "users/me")] HttpRequest req)
+    {
+        var sub = GetSubjectFromBearer(req);
+        if (sub is null)
+            return new UnauthorizedResult();
+
+        var id = User.BuildId(sub);
+        var user = await session.LoadAsync<User>(id, req.HttpContext.RequestAborted);
+
+        if (user is null)
+        {
+            var principal = req.HttpContext.User;
+            var roleString = principal.FindFirst("role")?.Value ?? "Viewer";
+
+            user = new User
+            {
+                Id = id,
+                SubjectId = sub,
+                Name = principal.FindFirst("given_name")?.Value ?? "",
+                Surname = principal.FindFirst("family_name")?.Value ?? "",
+                Email = principal.FindFirst("email")?.Value ?? "",
+                Role = Enum.TryParse<UserRole>(roleString, out var r) ? r : UserRole.Viewer,
+                CompanyIds = [.. principal.FindAll("company_id").Select(c => c.Value)],
+            };
+
+            await session.StoreAsync(user, id, req.HttpContext.RequestAborted);
+            await session.SaveChangesAsync(req.HttpContext.RequestAborted);
+        }
+
+        return new JsonResult(user);
+    }
+
+    // PUT /api/users/me — update display name fields.
+    [Authorize]
+    [Function(nameof(UpdateMe))]
+    public async Task<IActionResult> UpdateMe(
+        [HttpTrigger("put", Route = "users/me")] HttpRequest req)
+    {
+        var sub = GetSubjectFromBearer(req);
+        if (sub is null)
+            return new UnauthorizedResult();
+
+        var dto = await req.ReadFromJsonAsync<UpdateUserRequest>(req.HttpContext.RequestAborted);
+        if (dto is null)
+            return new BadRequestObjectResult("Invalid request body.");
+
+        var id = User.BuildId(sub);
+        var user = await session.LoadAsync<User>(id, req.HttpContext.RequestAborted);
+        if (user is null)
+            return new NotFoundObjectResult("User profile not found. Call GET /api/users/me first.");
+
+        if (!string.IsNullOrWhiteSpace(dto.Name)) user.Name = dto.Name.Trim();
+        if (!string.IsNullOrWhiteSpace(dto.Surname)) user.Surname = dto.Surname.Trim();
+
+        await session.SaveChangesAsync(req.HttpContext.RequestAborted);
+        return new JsonResult(user);
+    }
+
     // GET /api/company?cik=320193
+    [Authorize]
     [Function(nameof(GetCompany))]
     public async Task<IActionResult> GetCompany(
         [HttpTrigger("get", Route = "company")] HttpRequest req)
@@ -138,10 +253,15 @@ public class Api(
         if (company is null)
             return new NotFoundObjectResult($"Company with CIK {cik} does not exist in the database. Use POST /api/company to fetch it.");
 
+        var currentUser = await GetCurrentUserAsync(req);
+        if (currentUser?.Role == UserRole.Analyst && !currentUser.CompanyIds.Contains(company.Id))
+            return new ObjectResult("Access to this company is not allowed.") { StatusCode = 403 };
+
         return new JsonResult(company);
     }
 
     // POST /api/company?cik=320193
+    [Authorize(Roles = nameof(UserRole.Admin))]
     [Function(nameof(SaveCompany))]
     public async Task<IActionResult> SaveCompany(
         [HttpTrigger("post", Route = "company")] HttpRequest req)
@@ -151,7 +271,7 @@ public class Api(
             return new BadRequestObjectResult("Provide the 'cik' parameter (e.g., ?cik=320193).");
 
         var paddedCik = SecEdgar.NormalizeCik(cik);
-        var existing  = await session.Query<Company>().FirstOrDefaultAsync(c => c.Cik == paddedCik, req.HttpContext.RequestAborted);
+        var existing = await session.Query<Company>().FirstOrDefaultAsync(c => c.Cik == paddedCik, req.HttpContext.RequestAborted);
         if (existing is not null)
             return new ConflictObjectResult($"Company with CIK {paddedCik} already exists.");
 
@@ -160,6 +280,7 @@ public class Api(
     }
 
     // POST /api/fetch-10q?cik=320193&max=5
+    [Authorize(Roles = nameof(UserRole.Admin) + "," + nameof(UserRole.Analyst))]
     [Function(nameof(Fetch10Q))]
     public async Task<IActionResult> Fetch10Q(
         [HttpTrigger("post", Route = "fetch-10q")] HttpRequest req)
@@ -172,8 +293,24 @@ public class Api(
             max = 5;
 
         var paddedCik = SecEdgar.NormalizeCik(cik);
-        var company   = await session.Query<Company>().FirstOrDefaultAsync(c => c.Cik == paddedCik)
-                        ?? await edgar.FetchAndSaveCompanyAsync(paddedCik, req.HttpContext.RequestAborted);
+
+        // First try to find an existing company
+        var company = await session.Query<Company>().FirstOrDefaultAsync(c => c.Cik == paddedCik);
+
+        var currentUser = await GetCurrentUserAsync(req);
+        if (currentUser is null) return new UnauthorizedResult();
+
+        if (company is null)
+        {
+            // Only Admin can add a new company via this endpoint
+            if (currentUser.Role != UserRole.Admin)
+                return new ObjectResult("Company not found. Only Admin can add new companies.") { StatusCode = 403 };
+            company = await edgar.FetchAndSaveCompanyAsync(paddedCik, req.HttpContext.RequestAborted);
+        }
+        else if (!CanAccessCompany(currentUser, company.Id))
+        {
+            return new ObjectResult("Access to this company is not allowed.") { StatusCode = 403 };
+        }
 
         await edgar.FetchAndSaveAllFilingsAsync(company, max, req.HttpContext.RequestAborted);
 
@@ -182,6 +319,7 @@ public class Api(
 
     // POST /api/audit  — creates an audit for a given report
     // Body (JSON): { reportId, auditorName, auditorSurname, auditorEmail, auditString }
+    [Authorize(Roles = nameof(UserRole.Admin) + "," + nameof(UserRole.Analyst))]
     [Function(nameof(CreateAudit))]
     public async Task<IActionResult> CreateAudit(
         [HttpTrigger("post", Route = "audit")] HttpRequest req)
@@ -211,7 +349,10 @@ public class Api(
         var company = await session.LoadAsync<Company>(report.CompanyId, req.HttpContext.RequestAborted);
         if (company is null)
             return new NotFoundObjectResult($"Company '{report.CompanyId}' not found.");
-
+        var currentUser = await GetCurrentUserAsync(req);
+        if (currentUser is null) return new UnauthorizedResult();
+        if (!CanAccessCompany(currentUser, company.Id))
+            return new ObjectResult("Access to this company is not allowed.") { StatusCode = 403 };
         var auditId = Audit.BuildId(company, report);
 
         // Upsert: update existing audit or create a new one
@@ -224,11 +365,12 @@ public class Api(
             await session.StoreAsync(audit, req.HttpContext.RequestAborted);
         }
 
-        audit!.AuditorName    = body.AuditorName    ?? string.Empty;
-        audit.AuditorSurname  = body.AuditorSurname ?? string.Empty;
-        audit.AuditorEmail    = body.AuditorEmail   ?? string.Empty;
-        audit.AuditString     = body.AuditString    ?? string.Empty;
-        audit.GeneratedByAi   = body.GeneratedByAi;
+        // Auditor identity is taken from the authenticated user, not the posted body.
+        audit!.AuditorName = currentUser.Name;
+        audit.AuditorSurname = currentUser.Surname;
+        audit.AuditorEmail = currentUser.Email;
+        audit.AuditString = body.AuditString ?? string.Empty;
+        audit.GeneratedByAi = body.GeneratedByAi;
 
         await session.SaveChangesAsync(req.HttpContext.RequestAborted);
 
@@ -237,6 +379,7 @@ public class Api(
 
     // POST /api/audit/restore  — restores an audit document to a specific revision
     // Body (JSON): { auditId, changeVector }
+    [Authorize(Roles = nameof(UserRole.Admin) + "," + nameof(UserRole.Analyst))]
     [Function(nameof(RestoreAuditRevision))]
     public async Task<IActionResult> RestoreAuditRevision(
         [HttpTrigger("post", Route = "audit/restore")] HttpRequest req)
@@ -256,16 +399,23 @@ public class Api(
 
         if (body is null || string.IsNullOrWhiteSpace(body.AuditId) || string.IsNullOrWhiteSpace(body.ChangeVector))
             return new BadRequestObjectResult("Provide 'auditId' and 'changeVector' in the request body.");
-
+        var currentUser = await GetCurrentUserAsync(req);
+        if (currentUser is null) return new UnauthorizedResult();
+        var audit = await session.LoadAsync<Audit>(body.AuditId, req.HttpContext.RequestAborted);
+        if (audit is null) return new NotFoundObjectResult($"Audit '{body.AuditId}' not found.");
+        var report = await session.LoadAsync<Report>(audit.ReportId, req.HttpContext.RequestAborted);
+        if (report is null) return new NotFoundObjectResult($"Report '{audit.ReportId}' not found.");
+        if (!CanAccessCompany(currentUser, report.CompanyId))
+            return new ObjectResult("Access to this company is not allowed.") { StatusCode = 403 };
         await store.Operations.SendAsync(
             new RevertRevisionsByIdOperation(body.AuditId, body.ChangeVector),
             token: req.HttpContext.RequestAborted);
-
         return new OkResult();
     }
 
     // GET /api/audit/revisions?reportId=Reports/...
     // Note: revisions must be enabled for the Audits collection in RavenDB Studio.
+    [Authorize(Roles = nameof(UserRole.Admin) + "," + nameof(UserRole.Analyst))]
     [Function(nameof(GetAuditRevisions))]
     public async Task<IActionResult> GetAuditRevisions(
         [HttpTrigger("get", Route = "audit/revisions")] HttpRequest req)
@@ -279,14 +429,19 @@ public class Api(
 
         if (audit is null)
             return new NotFoundObjectResult($"Audit for report '{reportId}' not found.");
-
+        var currentUser = await GetCurrentUserAsync(req);
+        if (currentUser is null) return new UnauthorizedResult();
+        var report = await session.LoadAsync<Report>(audit.ReportId, req.HttpContext.RequestAborted);
+        if (report is null) return new NotFoundObjectResult($"Report '{audit.ReportId}' not found.");
+        if (!CanAccessCompany(currentUser, report.CompanyId))
+            return new ObjectResult("Access to this company is not allowed.") { StatusCode = 403 };
         // RavenDB includes the current version as the first revision — no need to fetch it separately
         var revisions = await session.Advanced.Revisions
                                      .GetForAsync<Audit>(audit.Id, 0, 50, req.HttpContext.RequestAborted);
 
         var revisionDtos = revisions.Select(rev =>
         {
-            var meta         = session.Advanced.GetMetadataFor(rev);
+            var meta = session.Advanced.GetMetadataFor(rev);
             var lastModified = meta.TryGetValue("@last-modified", out var lm) ? lm?.ToString() ?? "" : "";
             var changeVector = meta.TryGetValue("@change-vector", out var cv) ? cv?.ToString() ?? "" : "";
             return new AuditRevisionDto(rev, changeVector, lastModified);
@@ -296,6 +451,7 @@ public class Api(
     }
 
     // GET /api/audit?reportId=Reports/...
+    [Authorize(Roles = nameof(UserRole.Admin) + "," + nameof(UserRole.Analyst))]
     [Function(nameof(GetAudit))]
     public async Task<IActionResult> GetAudit(
         [HttpTrigger("get", Route = "audit")] HttpRequest req)
@@ -309,8 +465,63 @@ public class Api(
 
         if (audit is null)
             return new NotFoundObjectResult($"Audit for report '{reportId}' not found.");
-
+        var currentUser = await GetCurrentUserAsync(req);
+        if (currentUser is null) return new UnauthorizedResult();
+        var report = await session.LoadAsync<Report>(audit.ReportId, req.HttpContext.RequestAborted);
+        if (report is null) return new NotFoundObjectResult($"Report '{audit.ReportId}' not found.");
+        if (!CanAccessCompany(currentUser, report.CompanyId))
+            return new ObjectResult("Access to this company is not allowed.") { StatusCode = 403 };
         return new JsonResult(audit);
+    }
+
+    // GET /api/manage/users
+    [Authorize(Roles = nameof(UserRole.Admin))]
+    [Function(nameof(GetAllUsers))]
+    public async Task<IActionResult> GetAllUsers(
+        [HttpTrigger("get", Route = "manage/users")] HttpRequest req)
+    {
+        var users = await session.Query<User>()
+                                 .Where(u => u.SubjectId != null)
+                                 .OrderBy(u => u.Surname)
+                                 .ThenBy(u => u.Name)
+                                 .ToListAsync();
+        return new JsonResult(users);
+    }
+
+    // PUT /api/manage/users/{subjectId}/role
+    [Authorize(Roles = nameof(UserRole.Admin))]
+    [Function(nameof(SetUserRole))]
+    public async Task<IActionResult> SetUserRole(
+        [HttpTrigger("put", Route = "manage/users/{subjectId}/role")] HttpRequest req, string subjectId)
+    {
+        var body = await req.ReadFromJsonAsync<SetRoleRequest>(req.HttpContext.RequestAborted);
+        if (body is null || !Enum.TryParse<UserRole>(body.Role, out var newRole))
+            return new BadRequestObjectResult("Provide 'role': Viewer, Analyst, or Admin.");
+
+        var user = await session.LoadAsync<User>(User.BuildId(subjectId), req.HttpContext.RequestAborted);
+        if (user is null) return new NotFoundObjectResult($"User '{subjectId}' not found.");
+
+        user.Role = newRole;
+        await session.SaveChangesAsync(req.HttpContext.RequestAborted);
+        return new JsonResult(user);
+    }
+
+    // PUT /api/manage/users/{subjectId}/companies
+    [Authorize(Roles = nameof(UserRole.Admin))]
+    [Function(nameof(SetUserCompanies))]
+    public async Task<IActionResult> SetUserCompanies(
+        [HttpTrigger("put", Route = "manage/users/{subjectId}/companies")] HttpRequest req, string subjectId)
+    {
+        var body = await req.ReadFromJsonAsync<SetCompaniesRequest>(req.HttpContext.RequestAborted);
+        if (body is null)
+            return new BadRequestObjectResult("Provide 'companyIds' array.");
+
+        var user = await session.LoadAsync<User>(User.BuildId(subjectId), req.HttpContext.RequestAborted);
+        if (user is null) return new NotFoundObjectResult($"User '{subjectId}' not found.");
+
+        user.CompanyIds = body.CompanyIds ?? [];
+        await session.SaveChangesAsync(req.HttpContext.RequestAborted);
+        return new JsonResult(user);
     }
 
     // QueueTrigger: "auditRevisions" → save AuditNotification to RavenDB
@@ -318,20 +529,20 @@ public class Api(
     public async Task OnAuditRevision(
         [QueueTrigger(AuditRevisionQueueEtlTask.QueueName, Connection = Constants.EnvVars.AzureStorageConnectionString)] string messageBody)
     {
-        var opts    = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+        var opts = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
         var envelope = JsonSerializer.Deserialize<CloudEventEnvelope<AuditRevisionMessage>>(messageBody, opts);
-        var msg      = envelope?.Data;
+        var msg = envelope?.Data;
 
         if (msg is null) return;
 
         using var notifSession = store.OpenAsyncSession();
         var notification = new AuditNotification
         {
-            AuditId       = msg.AuditId,
-            CompanyName   = msg.CompanyName,
-            ReportYear    = msg.ReportYear,
+            AuditId = msg.AuditId,
+            CompanyName = msg.CompanyName,
+            ReportYear = msg.ReportYear,
             ReportQuarter = msg.ReportQuarter,
-            At            = DateTime.UtcNow
+            At = DateTime.UtcNow
         };
 
         await notifSession.StoreAsync(notification);
@@ -341,17 +552,18 @@ public class Api(
     }
 
     // GET /api/audit/stream — SSE: push new AuditNotifications to client
+    [Authorize]
     [Function(nameof(StreamAuditEvents))]
     public async Task StreamAuditEvents(
         [HttpTrigger("get", Route = "audit/stream")] HttpRequest req)
     {
         var res = req.HttpContext.Response;
-        res.StatusCode                   = 200;
-        res.Headers["Content-Type"]      = "text/event-stream";
-        res.Headers["Cache-Control"]     = "no-cache";
+        res.StatusCode = 200;
+        res.Headers["Content-Type"] = "text/event-stream";
+        res.Headers["Cache-Control"] = "no-cache";
         res.Headers["X-Accel-Buffering"] = "no";
 
-        var ct          = req.HttpContext.RequestAborted;
+        var ct = req.HttpContext.RequestAborted;
         var jsonOptions = new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
 
         using var subscription = store.Changes()
@@ -383,6 +595,7 @@ public class Api(
     }
 
     // GET /api/report/stream — SSE: push new AuditNotifications to client
+    [Authorize]
     [Function(nameof(StreamReportEvents))]
     public async Task StreamReportEvents(
         [HttpTrigger("get", Route = "report/stream")] HttpRequest req)
@@ -432,7 +645,7 @@ public record CreateAuditRequest(
     string? AuditorSurname,
     string? AuditorEmail,
     string? AuditString,
-    bool    GeneratedByAi = false);
+    bool GeneratedByAi = false);
 
 public record PagedResult<T>(IList<T> Items, int Page, int PageSize, int TotalPages);
 
@@ -443,7 +656,12 @@ public record RestoreAuditRevisionRequest(string? AuditId, string? ChangeVector)
 public record AuditRevisionMessage(
     string AuditId,
     string CompanyName,
-    int    ReportYear,
-    int    ReportQuarter);
+    int ReportYear,
+    int ReportQuarter);
+
+public record UpdateUserRequest(string? Name, string? Surname);
 
 public record CloudEventEnvelope<T>(T? Data);
+
+public record SetRoleRequest(string? Role);
+public record SetCompaniesRequest(List<string>? CompanyIds);

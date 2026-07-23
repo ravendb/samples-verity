@@ -11,6 +11,8 @@
     <PackageReference Include="CommunityToolkit.Aspire.RavenDB.Client" />
     <PackageReference Include="RavenDB.Client" />
     <PackageReference Include="RavenMigrations" />
+    <!-- AspNetCore framework: PasswordHasher used by 006_SeedDemoUsers migration -->
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
   </ItemGroup>
 
   <ItemGroup>

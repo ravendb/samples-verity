@@ -1,11 +1,14 @@
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Builder;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Raven.Client.Http;
+using RavenDB.Samples.Verity.App;
 using RavenDB.Samples.Verity.App.Infrastructure;
 using RavenDB.Samples.Verity.Setup;
 using System.Net.Security;
+using System.Text.Json.Serialization;
 
 // Accept self-signed server certs (chain validation fails because our dev CA is not trusted).
 // Name and revocation checks still apply — only chain-of-trust errors are forgiven.
@@ -34,8 +37,11 @@ builder.Services.AddCors(options =>
 });
 
 builder.ConfigureFunctionsWebApplication();
-
 builder.Services.AddHttpContextAccessor();
+
+//Serialize enums as strings ("Admin", "Analyst", "Viewer"), not as numbers
+builder.Services.Configure<Microsoft.AspNetCore.Mvc.JsonOptions>(o =>
+    o.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 
 builder.Services.AddHttpClient<SecEdgarApi>(client =>
 {
@@ -44,8 +50,24 @@ builder.Services.AddHttpClient<SecEdgarApi>(client =>
     client.DefaultRequestHeaders.TryAddWithoutValidation("User-Agent", userAgent);
 });
 
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(opt =>
+    {
+        opt.Authority = Environment.GetEnvironmentVariable(Constants.EnvVars.IdentityUrl)
+                        ?? throw new InvalidOperationException($"No environment variable '{Constants.EnvVars.IdentityUrl}' found.");
+        opt.Audience = "verity-api";
+        opt.RequireHttpsMetadata = !builder.Environment.IsDevelopment();
+        opt.MapInboundClaims = false;
+        opt.TokenValidationParameters.RoleClaimType = "role";
+        opt.TokenValidationParameters.NameClaimType = "name";
+    });
+builder.Services.AddAuthorization();
+
+
 builder.Services
     .AddApplicationInsightsTelemetryWorkerService()
     .ConfigureFunctionsApplicationInsights();
+
+builder.UseMiddleware<AuthMiddleware>();
 
 builder.Build().Run();

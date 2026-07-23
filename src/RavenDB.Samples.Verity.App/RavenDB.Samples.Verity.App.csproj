@@ -20,6 +20,7 @@
     <PackageReference Include="HtmlAgilityPack" />
     <PackageReference Include="RavenDB.Client" />
     <PackageReference Include="System.Reactive" />
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" />
   </ItemGroup>
 
   <ItemGroup>

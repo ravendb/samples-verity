@@ -1,6 +1,7 @@
 <script lang="ts">
 	import favicon from '$lib/assets/favicon.png';
 	import { apiUrl } from '$lib/api';
+	import AuthModal from '$lib/components/AuthModal.svelte';
 	import { onMount, onDestroy } from 'svelte';
 	import { lastUpdatedReportId } from '$lib/stores/liveUpdates';
 
@@ -115,6 +116,8 @@
 	{@render children()}
 </samples-ui-wrapper>
 
+<AuthModal />
+
 <div class="audit-toast-stack">
 	{#each toasts as t (t.notification.id)}
 		<div
@@ -157,7 +160,7 @@
 	}
 	:global(.verity-brand:hover) { opacity: 0.8; }
 
-	:global(input, button, select, textarea) {
+:global(input, button, select, textarea) {
 		font: inherit;
 	}
 
