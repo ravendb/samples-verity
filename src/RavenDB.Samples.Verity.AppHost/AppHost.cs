@@ -108,7 +108,7 @@ settings.TcpPort = ravenTcpPort;
 var ravenDbServer = builder
     .AddRavenDB("RavenDB", settings)
     .WithBindMount(certsDir, "/etc/ravendb/security", isReadOnly: true)
-    .WithImage("ravendb/ravendb", "7.2.5")
+    .WithImage("ravendb/ravendb", "7.2.6")
     .WithIconName("Database")
     .WithEnvironment("RAVEN_License_Eula_Accepted", "true")
     .WithEnvironment("RAVEN_License", ravenDbLicense);
